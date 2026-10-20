@@ -1,9 +1,9 @@
 # IrodoriSpeechCpp — iPhone向けSwift SDK
 
-Irodori v4.1 Small MFのMetal音声合成と、ReazonSpeech NeMo v2 Q4_Kの音声認識を提供します。
+Irodori v4.1 Small MFのMetal音声合成を提供します。
 共通の音声型・AudioSeal・RAM計測にはルートの `IrodoriTTS` を使用します。
 
-[SDK導入](#ビルドと追加) · [音声認識](#音声認識) · [アプリの計測ガイド](../../Tests/README.md#device-profiling)
+[SDK導入](#ビルドと追加) · [アプリの計測ガイド](../../Tests/README.md#device-profiling)
 
 ## ビルドと追加
 
@@ -48,18 +48,14 @@ func makeWAV(engine: SpeechCppEngine, models: URL, output: URL) async throws -> 
 
 `caption` は日本語の話し方指定、`seed` は再現用のUInt32値です。AudioSealは既定で有効で、`watermark: nil` で無効化します。
 `onChunk` は推論キュー上でPCM16を通知します。再生やUI更新はアプリ側のキューへ渡してください。
-このAPIは全文を1回で合成し、Core ML SDKの `rawText` / `splitSentences` 引数は持ちません。
+このAPIは全文を1回で合成し、`rawText` / `splitSentences` 引数は持ちません。
 モデルの長さ上限を超える入力はエラーになります。APIと結果型の詳細は
 [SpeechCppEngine.swift](Sources/IrodoriSpeechCpp/SpeechCppEngine.swift) と
-[共通の結果型](../../Sources/IrodoriTTS/IrodoriEngine.swift) を参照してください。
+[共通の結果型](../../Sources/IrodoriTTS/SpeechTypes.swift) を参照してください。
 
-## 音声認識
-
-`SpeechRecognitionEngine` は `prepare(modelFile:)`、`transcribe(_:decoding:)`、`release()` を提供します。
-`RecognitionDecoding.beam` / `.greedy` を指定でき、結果は文字列・音声長・変換時間・推論時間・RTF・RAMを含みます。
-モデル取得は [ReazonSpeechModel.swift](Sources/IrodoriSpeechCpp/ReazonSpeechModel.swift)、
-呼び出し方法と結果型は [SpeechRecognitionEngine.swift](Sources/IrodoriSpeechCpp/SpeechRecognitionEngine.swift) を参照してください。
-現在のCharaTalkアプリの音声認識は、このSDKではなくAppleのSpeechフレームワークを使います。
+未使用のReazonSpeech認識ラッパー・モデル取得コードは除去済みです。
+TTSに必要な共有ランタイムのバイナリは変更していません。
+CharaTalkアプリの音声認識にはAppleのSpeechフレームワークを使います。
 
 ## メモリと計測
 

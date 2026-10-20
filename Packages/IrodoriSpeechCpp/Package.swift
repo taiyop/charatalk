@@ -9,7 +9,7 @@ let package = Package(
     targets: [
         .binaryTarget(name: "SpeechCpp", path: "Artifacts/SpeechCpp.xcframework.zip"),
         .target(name: "IrodoriSpeechNative", dependencies: ["SpeechCpp"],
-                sources: ["IrodoriSpeechBridge.mm", "ReazonSpeechBridge.mm"], publicHeadersPath: "include",
+                sources: ["IrodoriSpeechBridge.mm"], publicHeadersPath: "include",
                 linkerSettings: [.linkedFramework("Foundation"), .linkedFramework("Metal")]),
         .target(name: "IrodoriSpeechCpp", dependencies: ["IrodoriSpeechNative", .product(name: "IrodoriTTS", package: "IrodoriTTS")]),
     ],

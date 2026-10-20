@@ -1,7 +1,6 @@
 // Modified for CharaTalk: native synthesis bridge integration.
 // Derived from Corvelis/irodori-tts-iphone; see root NOTICE and THIRD_PARTY_NOTICES.md.
 #import <Foundation/Foundation.h>
-#import "ReazonSpeechBridge.h"
 NS_ASSUME_NONNULL_BEGIN
 /// Confine all methods except cancel to one inference queue. Always release before switching engines.
 @interface IrodoriSpeechBridge : NSObject
