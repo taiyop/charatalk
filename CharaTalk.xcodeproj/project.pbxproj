@@ -27,7 +27,6 @@
 		644773F490676B05C52D5CF0 /* LlamaCpp in Frameworks */ = {isa = PBXBuildFile; productRef = 017C4F9D983BB2D2D879CA4B /* LlamaCpp */; };
 		6BFA661F8CB16D701F5A6E99 /* SentenceSplitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C651DCE8FE171B69A210807 /* SentenceSplitter.swift */; };
 		7065E7FF426A31325E720E61 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46AC2C0BF58F423B14E63D69 /* AVFoundation.framework */; };
-		70DCA5010B923D22BE6A2DD0 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAD9E37292C728109482E97E /* AuthenticationServices.framework */; };
 		7290690994992997F5450C15 /* AudioSpeechPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A92A4E61ECFC69C735A8C2D /* AudioSpeechPlayer.swift */; };
 		7A7BBC064DBF4508C277C899 /* VoiceReferenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5FE1AEF6A6E2CA861151BD /* VoiceReferenceManager.swift */; };
 		9C554F055255DEF2442F3BF2 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4A213F70EB024B979FD76C /* AppSettings.swift */; };
@@ -101,7 +100,6 @@
 		C46E5FD43077D78FF4037FF7 /* VRMRealityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VRMRealityView.swift; sourceTree = "<group>"; };
 		C6ECACCD6634F235D87E9751 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9F9354A963B19D063F2C1A1 /* CharaTalkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharaTalkApp.swift; sourceTree = "<group>"; };
-		EAD9E37292C728109482E97E /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		EB5FE1AEF6A6E2CA861151BD /* VoiceReferenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceReferenceManager.swift; sourceTree = "<group>"; };
 		FA48231A7A2A2453B7B2583E /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		C897846F4091F7F319010B21 /* default_avatar.vrm */ = {isa = PBXFileReference; lastKnownFileType = file; path = App/Resources/default_avatar.vrm; sourceTree = SOURCE_ROOT; };
@@ -124,7 +122,6 @@
 				E210C1E36C3006A5E75751FE /* Accelerate.framework in Frameworks */,
 				5AEF7142759DCD99823E7D5C /* Speech.framework in Frameworks */,
 				CA31CAA2F454DB9DC79A4875 /* SafariServices.framework in Frameworks */,
-				70DCA5010B923D22BE6A2DD0 /* AuthenticationServices.framework in Frameworks */,
 				E780DF18AAD413D2061008E6 /* Network.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -243,7 +240,6 @@
 			isa = PBXGroup;
 			children = (
 				052603171604152D3ED748D3 /* Accelerate.framework */,
-				EAD9E37292C728109482E97E /* AuthenticationServices.framework */,
 				46AC2C0BF58F423B14E63D69 /* AVFoundation.framework */,
 				013FFC8CD0E57DE7E7479563 /* CoreML.framework */,
 				4F92564735EDEFDD235F6E3D /* Metal.framework */,

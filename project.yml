@@ -49,7 +49,6 @@ targets:
       - sdk: Accelerate.framework
       - sdk: Speech.framework
       - sdk: SafariServices.framework
-      - sdk: AuthenticationServices.framework
       - sdk: Network.framework
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.aituber.charatalk

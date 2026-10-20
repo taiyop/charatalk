@@ -3,7 +3,6 @@ import SwiftUI
 import CryptoKit
 import Network
 import SafariServices
-import AuthenticationServices
 
 @MainActor
 public final class ChatGPTAuthManager: NSObject, ObservableObject, @preconcurrency SFSafariViewControllerDelegate {
