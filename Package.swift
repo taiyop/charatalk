@@ -11,20 +11,12 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "IrodoriNative",
-            publicHeadersPath: "include",
-            cxxSettings: [.define("IRODORI_COREML_ONLY", to: "1")],
+            name: "IrodoriTTS",
             linkerSettings: [
-                .linkedFramework("Foundation"),
+                .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreML"),
                 .linkedFramework("Accelerate")
             ]
         ),
-        .target(
-            name: "IrodoriTTS",
-            dependencies: ["IrodoriNative"],
-            linkerSettings: [.linkedFramework("AVFoundation")]
-        ),
-    ],
-    cxxLanguageStandard: .cxx17
+    ]
 )
