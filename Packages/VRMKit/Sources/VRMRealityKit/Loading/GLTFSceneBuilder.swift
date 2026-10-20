@@ -1,4 +1,5 @@
 #if canImport(RealityKit)
+// Modified for CharaTalk: remove texture preuploads used only by the removed MToon shader.
 import CoreGraphics
 import Foundation
 import RealityKit
@@ -932,12 +933,6 @@ final class GLTFSceneBuilder {
         }
         for materialIndex in try drawnMaterialIndices() {
             guard let material = gltf.materials[safe: materialIndex] else { continue }
-            if let mtoon = try? mtoonDescriptor(withMaterialIndex: materialIndex) {
-                for slot in MToonTextureSlot.allCases {
-                    if let texture = mtoon.texture(for: slot) { request(texture.index, slot.semantic) }
-                }
-                continue
-            }
             if let base = material.pbrMetallicRoughness?.baseColorTexture { request(base.index, .color) }
             if let emissive = material.emissiveTexture { request(emissive.index, .color) }
             // Scaled normals and weakened occlusion are baked into their own images first.

@@ -1,4 +1,5 @@
 #if canImport(RealityKit)
+// Modified for CharaTalk: use only the built-in Unlit/PBR material path.
 import Foundation
 import RealityKit
 import VRMKit
@@ -20,9 +21,8 @@ public final class GLTFEntityLoader {
     private let queue = GLTFLoadQueue()
     var gltf: GLTF { document.gltf }
 
-    /// MToon for materials that carry MToon data. Computed so every loader gets its own
-    /// shader instances.
-    public static var defaultShaders: [any GLTFMaterialShader] { [MToonShader()] }
+    /// No custom shaders are bundled; materials use the built-in Unlit / PBR path.
+    public static var defaultShaders: [any GLTFMaterialShader] { [] }
 
     /// The largest side a texture keeps, or nil to upload every image as authored.
     ///
