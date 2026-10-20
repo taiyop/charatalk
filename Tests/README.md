@@ -24,7 +24,40 @@ Default avatar check: clean install with no custom avatar → `vrm_sample` loads
 import a custom VRM → it still takes priority; `デフォルトモデルに戻す` →
 `vrm_sample` loads again. Check framing, blink and lip sync on a device.
 `App/Resources/default_avatar.vrm` contains the renamed but otherwise unchanged
-vrm_sample model; old Seed-san is not bundled.
+vrm_sample model.
+
+## Unused dependency removal
+
+```sh
+python3 Tests/DependencyPackagingTests.py
+python3 Tests/DependencyPackagingTests.py --app-bundle "/path/to/CharaTalk.app"
+```
+
+Checks the evaluated Swift package manifests, removal of the legacy Core ML TTS
+native target, TTS-only bridge sources, absence of MToon shader resources, and
+removal of the direct AuthenticationServices dependency. With a built app, also
+checks its resources, linked frameworks and exported symbols. The shared speech.cpp
+archive stays byte-identical; AudioSeal/Core ML, shared speech types, VRM material
+parsing and the existing Unlit/PBR renderer remain available.
+
+The extracted shared types can be tested against the complete SDK without the
+removed native target (macOS, no models or network needed):
+
+```sh
+BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/speech-types-tests.XXXXXX")"
+swiftc -swift-version 5 -emit-module -emit-library -module-name IrodoriTTS \
+  Sources/IrodoriTTS/*.swift -emit-module-path "$BIN_DIR/IrodoriTTS.swiftmodule" \
+  -o "$BIN_DIR/libIrodoriTTS.dylib" &&
+swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
+  -I "$BIN_DIR" -L "$BIN_DIR" -lIrodoriTTS \
+  Tests/SpeechTypesTests.swift -o "$BIN_DIR/tests" &&
+DYLD_LIBRARY_PATH="$BIN_DIR" "$BIN_DIR/tests"
+```
+
+The temporary directory is retained for inspection. The checks cover PCM chunks,
+result defaults/metadata, seed filtering, duration/RTF, WAV output and reference
+registration. Swift 5 matches the SDK package's current Swift tools version;
+the consuming harness uses Swift 6, as the app does.
 
 ## Device log / UI responsiveness check
 
