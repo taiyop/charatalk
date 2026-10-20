@@ -1,0 +1,66 @@
+name: CharaTalk
+options:
+  bundleIdPrefix: com.aituber
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+
+packages:
+  IrodoriTTS:
+    path: .
+  IrodoriSpeechCpp:
+    path: Packages/IrodoriSpeechCpp
+  LlamaCpp:
+    path: Packages/LlamaCpp
+  VRMKit:
+    path: Packages/VRMKit
+
+targets:
+  CharaTalk:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: App
+      - path: LICENSE
+        buildPhase: resources
+      - path: NOTICE
+        buildPhase: resources
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+      - path: LICENSES
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: IrodoriTTS
+        product: IrodoriTTS
+      - package: IrodoriSpeechCpp
+        product: IrodoriSpeechCpp
+      - package: LlamaCpp
+        product: LlamaCpp
+      - package: VRMKit
+        product: VRMKit
+      - package: VRMKit
+        product: VRMRealityKit
+      - sdk: RealityKit.framework
+      - sdk: Metal.framework
+      - sdk: AVFoundation.framework
+      - sdk: CoreML.framework
+      - sdk: Accelerate.framework
+      - sdk: Speech.framework
+      - sdk: SafariServices.framework
+      - sdk: AuthenticationServices.framework
+      - sdk: Network.framework
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.aituber.charatalk
+      INFOPLIST_FILE: App/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
+      SWIFT_VERSION: "6.0"
+      ENABLE_BITCODE: NO
+      CODE_SIGN_STYLE: Automatic
+      CURRENT_PROJECT_VERSION: 1
+      MARKETING_VERSION: "1.0.0"
+      IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+      TARGETED_DEVICE_FAMILY: "1" # iPhone
+      EXCLUDED_ARCHS[sdk=iphonesimulator*]: "x86_64"
+      ONLY_ACTIVE_ARCH: YES

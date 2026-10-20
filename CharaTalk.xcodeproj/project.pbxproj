@@ -1,0 +1,634 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C897846F4091F7F319010B01 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010B02 /* LICENSE */; };
+		C897846F4091F7F319010B03 /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010B04 /* NOTICE */; };
+		C897846F4091F7F319010B05 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010B06 /* THIRD_PARTY_NOTICES.md */; };
+		C897846F4091F7F319010B07 /* LICENSES in Resources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010B08 /* LICENSES */; };
+		0135107B7F25D500C6903186 /* ConversationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E74E0B6CB1B77A10AE60A3 /* ConversationViewModel.swift */; };
+		130F0A5034F5A2D7451E940C /* SpeechAnalyzerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19C94CBD3E6BBFF39145BD88 /* SpeechAnalyzerService.swift */; };
+		13C66ED9905B8D4A2B2062B9 /* VRMCharacterController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08A2F05978E6DF8C76B9105F /* VRMCharacterController.swift */; };
+		15230C62347A2BC0483F1DB4 /* VRMKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5BAC131C0F549CB0932BFF8F /* VRMKit */; };
+		1565C0DDEFCAAE8F165B6E0A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C6ECACCD6634F235D87E9751 /* Assets.xcassets */; };
+		25DAB2FB281CC0EA992CF2F4 /* ChatOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DAF0A2A16DD96B4867A0045 /* ChatOverlayView.swift */; };
+		2D3ED9E418EB5CF8AD672A0C /* IrodoriSpeechCpp in Frameworks */ = {isa = PBXBuildFile; productRef = 4A9FAE67C703381CEF919985 /* IrodoriSpeechCpp */; };
+		C897846F4091F7F319010B20 /* default_avatar.vrm in Resources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010B21 /* default_avatar.vrm */; };
+		34BFC1113B3B887DA07F387D /* IrodoriTTS in Frameworks */ = {isa = PBXBuildFile; productRef = 8ED9860EFF7B27B5C9F959B6 /* IrodoriTTS */; };
+		3D7B9BB717CABA9EDF5EE04B /* VRMRealityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C46E5FD43077D78FF4037FF7 /* VRMRealityView.swift */; };
+		3DC64189E4B648D22ABA3736 /* RealityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0CAEADBE683B4A613D6A89D0 /* RealityKit.framework */; };
+		471A5A82BE2476CA17B8CBAE /* SpeechTTSManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617714689E3304B28C8D0BED /* SpeechTTSManager.swift */; };
+		5AEF7142759DCD99823E7D5C /* Speech.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EBD84A856FAB2F75ED3BDA9 /* Speech.framework */; };
+		644773F490676B05C52D5CF0 /* LlamaCpp in Frameworks */ = {isa = PBXBuildFile; productRef = 017C4F9D983BB2D2D879CA4B /* LlamaCpp */; };
+		6BFA661F8CB16D701F5A6E99 /* SentenceSplitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C651DCE8FE171B69A210807 /* SentenceSplitter.swift */; };
+		7065E7FF426A31325E720E61 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46AC2C0BF58F423B14E63D69 /* AVFoundation.framework */; };
+		70DCA5010B923D22BE6A2DD0 /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAD9E37292C728109482E97E /* AuthenticationServices.framework */; };
+		7290690994992997F5450C15 /* AudioSpeechPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A92A4E61ECFC69C735A8C2D /* AudioSpeechPlayer.swift */; };
+		7A7BBC064DBF4508C277C899 /* VoiceReferenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5FE1AEF6A6E2CA861151BD /* VoiceReferenceManager.swift */; };
+		9C554F055255DEF2442F3BF2 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4A213F70EB024B979FD76C /* AppSettings.swift */; };
+		A36E22D7E66592B542170328 /* LocalLLMManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A9CA7DBBDDDE5C1D0577FF0 /* LocalLLMManager.swift */; };
+		AD4224FE6BFDD419C5F6EDB4 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEBE114D6EDE804D0DFCDE /* AppTheme.swift */; };
+		B05132058DE9B8D168DC6CD6 /* LLMClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76177F9D05D8080A98D0A42B /* LLMClient.swift */; };
+		B8669C6AA30C510D4CD620F7 /* ChatGPTAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ADCE4EAC5EED597EAB7276B /* ChatGPTAuthManager.swift */; };
+		C897846F4091F7F319010A11 /* ChatGPTOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A12 /* ChatGPTOAuth.swift */; };
+		C897846F4091F7F319010A13 /* ChatGPTModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A14 /* ChatGPTModel.swift */; };
+		C897846F4091F7F319010A15 /* ChatGPTInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A16 /* ChatGPTInference.swift */; };
+		C897846F4091F7F319010A17 /* TTSSynthesisMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A18 /* TTSSynthesisMode.swift */; };
+		C897846F4091F7F319010A19 /* GeminiInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A20 /* GeminiInference.swift */; };
+		C897846F4091F7F319010A21 /* GeminiSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A22 /* GeminiSettingsView.swift */; };
+		C897846F4091F7F319010A23 /* ConversationPerformance.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A24 /* ConversationPerformance.swift */; };
+		C897846F4091F7F319010A25 /* SpeechSubtitleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A26 /* SpeechSubtitleState.swift */; };
+		BA798AF6D529FB0287665FC9 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F92564735EDEFDD235F6E3D /* Metal.framework */; };
+		CA31CAA2F454DB9DC79A4875 /* SafariServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21E76D26CD59C302FFD0DC72 /* SafariServices.framework */; };
+		DFE1EDFD95CFF2B3AA03556C /* VRMRealityKit in Frameworks */ = {isa = PBXBuildFile; productRef = D2E9A9F98DCB46846C913758 /* VRMRealityKit */; };
+		E210C1E36C3006A5E75751FE /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 052603171604152D3ED748D3 /* Accelerate.framework */; };
+		E3068F7D5E14B8C69379464F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5198F97666B717642BAC2D3C /* ContentView.swift */; };
+		E780DF18AAD413D2061008E6 /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 44E20FAFEE39FE717338BF55 /* Network.framework */; };
+		E822EE0ED3219FA9F89AABF0 /* SileroVADDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42E6C0963F2E8F58A3BDEA4E /* SileroVADDetector.swift */; };
+		E8E24D68F587059D5A9F8746 /* CharaTalkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F9354A963B19D063F2C1A1 /* CharaTalkApp.swift */; };
+		F055698873E8AA3269A78D2C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BC8424BAD34F87ED16B2DAF /* SettingsView.swift */; };
+		F6B0E9A602CD9F7A86AFC9D5 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 013FFC8CD0E57DE7E7479563 /* CoreML.framework */; };
+		F801CD518750E643CAEBB6CC /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA48231A7A2A2453B7B2583E /* ChatMessage.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C897846F4091F7F319010B02 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = SOURCE_ROOT; };
+		C897846F4091F7F319010B04 /* NOTICE */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE; sourceTree = SOURCE_ROOT; };
+		C897846F4091F7F319010B06 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = SOURCE_ROOT; };
+		C897846F4091F7F319010B08 /* LICENSES */ = {isa = PBXFileReference; lastKnownFileType = folder; path = LICENSES; sourceTree = SOURCE_ROOT; };
+		013FFC8CD0E57DE7E7479563 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
+		052603171604152D3ED748D3 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		08A2F05978E6DF8C76B9105F /* VRMCharacterController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VRMCharacterController.swift; sourceTree = "<group>"; };
+		0C651DCE8FE171B69A210807 /* SentenceSplitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentenceSplitter.swift; sourceTree = "<group>"; };
+		0CAEADBE683B4A613D6A89D0 /* RealityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = RealityKit.framework; path = System/Library/Frameworks/RealityKit.framework; sourceTree = SDKROOT; };
+		0E905851F035FEC9CB071C2F /* charatalk */ = {isa = PBXFileReference; lastKnownFileType = folder; name = charatalk; path = .; sourceTree = SOURCE_ROOT; };
+		19C94CBD3E6BBFF39145BD88 /* SpeechAnalyzerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAnalyzerService.swift; sourceTree = "<group>"; };
+		1CF481E7A537972D07245121 /* VRMKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VRMKit; path = Packages/VRMKit; sourceTree = SOURCE_ROOT; };
+		21E76D26CD59C302FFD0DC72 /* SafariServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SafariServices.framework; path = System/Library/Frameworks/SafariServices.framework; sourceTree = SDKROOT; };
+		29EEBE114D6EDE804D0DFCDE /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		2BF75E0A2F27B06BC5E56B47 /* IrodoriSpeechCpp */ = {isa = PBXFileReference; lastKnownFileType = folder; name = IrodoriSpeechCpp; path = Packages/IrodoriSpeechCpp; sourceTree = SOURCE_ROOT; };
+		42E6C0963F2E8F58A3BDEA4E /* SileroVADDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SileroVADDetector.swift; sourceTree = "<group>"; };
+		44E20FAFEE39FE717338BF55 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
+		46AC2C0BF58F423B14E63D69 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		4BC8424BAD34F87ED16B2DAF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4F92564735EDEFDD235F6E3D /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		5198F97666B717642BAC2D3C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		5A9CA7DBBDDDE5C1D0577FF0 /* LocalLLMManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMManager.swift; sourceTree = "<group>"; };
+		5B4A213F70EB024B979FD76C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		5DAF0A2A16DD96B4867A0045 /* ChatOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlayView.swift; sourceTree = "<group>"; };
+		617714689E3304B28C8D0BED /* SpeechTTSManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechTTSManager.swift; sourceTree = "<group>"; };
+		66840479C8F6A0A1538094F4 /* LlamaCpp */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LlamaCpp; path = Packages/LlamaCpp; sourceTree = SOURCE_ROOT; };
+		76177F9D05D8080A98D0A42B /* LLMClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMClient.swift; sourceTree = "<group>"; };
+		76F1872554AA007371C4CB52 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7A92A4E61ECFC69C735A8C2D /* AudioSpeechPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSpeechPlayer.swift; sourceTree = "<group>"; };
+		85F15A649655BAEE45BDFC14 /* CharaTalk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CharaTalk.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8EBD84A856FAB2F75ED3BDA9 /* Speech.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Speech.framework; path = System/Library/Frameworks/Speech.framework; sourceTree = SDKROOT; };
+		9ADCE4EAC5EED597EAB7276B /* ChatGPTAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTAuthManager.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A12 /* ChatGPTOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTOAuth.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A14 /* ChatGPTModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTModel.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A16 /* ChatGPTInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTInference.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A18 /* TTSSynthesisMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSSynthesisMode.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A20 /* GeminiInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiInference.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A22 /* GeminiSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiSettingsView.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A24 /* ConversationPerformance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationPerformance.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A26 /* SpeechSubtitleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechSubtitleState.swift; sourceTree = "<group>"; };
+		A3E74E0B6CB1B77A10AE60A3 /* ConversationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationViewModel.swift; sourceTree = "<group>"; };
+		C46E5FD43077D78FF4037FF7 /* VRMRealityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VRMRealityView.swift; sourceTree = "<group>"; };
+		C6ECACCD6634F235D87E9751 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E9F9354A963B19D063F2C1A1 /* CharaTalkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharaTalkApp.swift; sourceTree = "<group>"; };
+		EAD9E37292C728109482E97E /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
+		EB5FE1AEF6A6E2CA861151BD /* VoiceReferenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceReferenceManager.swift; sourceTree = "<group>"; };
+		FA48231A7A2A2453B7B2583E /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010B21 /* default_avatar.vrm */ = {isa = PBXFileReference; lastKnownFileType = file; path = App/Resources/default_avatar.vrm; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2588417BC76851282250568F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				34BFC1113B3B887DA07F387D /* IrodoriTTS in Frameworks */,
+				2D3ED9E418EB5CF8AD672A0C /* IrodoriSpeechCpp in Frameworks */,
+				644773F490676B05C52D5CF0 /* LlamaCpp in Frameworks */,
+				15230C62347A2BC0483F1DB4 /* VRMKit in Frameworks */,
+				DFE1EDFD95CFF2B3AA03556C /* VRMRealityKit in Frameworks */,
+				3DC64189E4B648D22ABA3736 /* RealityKit.framework in Frameworks */,
+				BA798AF6D529FB0287665FC9 /* Metal.framework in Frameworks */,
+				7065E7FF426A31325E720E61 /* AVFoundation.framework in Frameworks */,
+				F6B0E9A602CD9F7A86AFC9D5 /* CoreML.framework in Frameworks */,
+				E210C1E36C3006A5E75751FE /* Accelerate.framework in Frameworks */,
+				5AEF7142759DCD99823E7D5C /* Speech.framework in Frameworks */,
+				CA31CAA2F454DB9DC79A4875 /* SafariServices.framework in Frameworks */,
+				70DCA5010B923D22BE6A2DD0 /* AuthenticationServices.framework in Frameworks */,
+				E780DF18AAD413D2061008E6 /* Network.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C897846F4091F7F319010B17 /* Licensing */ = {
+			isa = PBXGroup;
+			children = (
+				C897846F4091F7F319010B02 /* LICENSE */,
+				C897846F4091F7F319010B04 /* NOTICE */,
+				C897846F4091F7F319010B06 /* THIRD_PARTY_NOTICES.md */,
+				C897846F4091F7F319010B08 /* LICENSES */,
+			);
+			name = Licensing;
+			sourceTree = "<group>";
+		};
+		06854D6035E6BFBB1BB6151E /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				29EEBE114D6EDE804D0DFCDE /* AppTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		0D823DCB374498C543CFD04A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				85F15A649655BAEE45BDFC14 /* CharaTalk.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		224969A38BDCE27DD416635F /* App */ = {
+			isa = PBXGroup;
+			children = (
+				C6ECACCD6634F235D87E9751 /* Assets.xcassets */,
+				E9F9354A963B19D063F2C1A1 /* CharaTalkApp.swift */,
+				76F1872554AA007371C4CB52 /* Info.plist */,
+				5547BA58976CB583A9572C09 /* Models */,
+				34BC2F606C118182DF20B1E0 /* Resources */,
+				25A7BCE3EC98FB54975F75B7 /* Services */,
+				06854D6035E6BFBB1BB6151E /* Theme */,
+				92B244F584A8B0C9B018BDB5 /* ViewModels */,
+				4B574775E3B8F9563BDB5087 /* Views */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		25A7BCE3EC98FB54975F75B7 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				7A92A4E61ECFC69C735A8C2D /* AudioSpeechPlayer.swift */,
+				C897846F4091F7F319010A24 /* ConversationPerformance.swift */,
+				9ADCE4EAC5EED597EAB7276B /* ChatGPTAuthManager.swift */,
+				C897846F4091F7F319010A12 /* ChatGPTOAuth.swift */,
+				C897846F4091F7F319010A16 /* ChatGPTInference.swift */,
+				C897846F4091F7F319010A20 /* GeminiInference.swift */,
+				76177F9D05D8080A98D0A42B /* LLMClient.swift */,
+				5A9CA7DBBDDDE5C1D0577FF0 /* LocalLLMManager.swift */,
+				0C651DCE8FE171B69A210807 /* SentenceSplitter.swift */,
+				42E6C0963F2E8F58A3BDEA4E /* SileroVADDetector.swift */,
+				19C94CBD3E6BBFF39145BD88 /* SpeechAnalyzerService.swift */,
+				617714689E3304B28C8D0BED /* SpeechTTSManager.swift */,
+				EB5FE1AEF6A6E2CA861151BD /* VoiceReferenceManager.swift */,
+				08A2F05978E6DF8C76B9105F /* VRMCharacterController.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		34BC2F606C118182DF20B1E0 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C897846F4091F7F319010B21 /* default_avatar.vrm */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		456995B0D4B27652DEB578D5 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				0E905851F035FEC9CB071C2F /* charatalk */,
+				2BF75E0A2F27B06BC5E56B47 /* IrodoriSpeechCpp */,
+				66840479C8F6A0A1538094F4 /* LlamaCpp */,
+				1CF481E7A537972D07245121 /* VRMKit */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		4B574775E3B8F9563BDB5087 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				5DAF0A2A16DD96B4867A0045 /* ChatOverlayView.swift */,
+				5198F97666B717642BAC2D3C /* ContentView.swift */,
+				C897846F4091F7F319010A22 /* GeminiSettingsView.swift */,
+				4BC8424BAD34F87ED16B2DAF /* SettingsView.swift */,
+				C46E5FD43077D78FF4037FF7 /* VRMRealityView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		5547BA58976CB583A9572C09 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				5B4A213F70EB024B979FD76C /* AppSettings.swift */,
+				C897846F4091F7F319010A18 /* TTSSynthesisMode.swift */,
+				FA48231A7A2A2453B7B2583E /* ChatMessage.swift */,
+				C897846F4091F7F319010A26 /* SpeechSubtitleState.swift */,
+				C897846F4091F7F319010A14 /* ChatGPTModel.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		8C02395EF76F5F4A0C6888DC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				052603171604152D3ED748D3 /* Accelerate.framework */,
+				EAD9E37292C728109482E97E /* AuthenticationServices.framework */,
+				46AC2C0BF58F423B14E63D69 /* AVFoundation.framework */,
+				013FFC8CD0E57DE7E7479563 /* CoreML.framework */,
+				4F92564735EDEFDD235F6E3D /* Metal.framework */,
+				44E20FAFEE39FE717338BF55 /* Network.framework */,
+				0CAEADBE683B4A613D6A89D0 /* RealityKit.framework */,
+				21E76D26CD59C302FFD0DC72 /* SafariServices.framework */,
+				8EBD84A856FAB2F75ED3BDA9 /* Speech.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		92B244F584A8B0C9B018BDB5 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				A3E74E0B6CB1B77A10AE60A3 /* ConversationViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		BCD90483FB8273275D2D85BA = {
+			isa = PBXGroup;
+			children = (
+				224969A38BDCE27DD416635F /* App */,
+				C897846F4091F7F319010B17 /* Licensing */,
+				456995B0D4B27652DEB578D5 /* Packages */,
+				8C02395EF76F5F4A0C6888DC /* Frameworks */,
+				0D823DCB374498C543CFD04A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D7EE823F2ED11BCE21460170 /* CharaTalk */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DBFE73D86DD00A20A00BC832 /* Build configuration list for PBXNativeTarget "CharaTalk" */;
+			buildPhases = (
+				3D2BD528D380D7F35B61E820 /* Sources */,
+				99A5AE4031665C6F18713D03 /* Resources */,
+				2588417BC76851282250568F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CharaTalk;
+			packageProductDependencies = (
+				8ED9860EFF7B27B5C9F959B6 /* IrodoriTTS */,
+				4A9FAE67C703381CEF919985 /* IrodoriSpeechCpp */,
+				017C4F9D983BB2D2D879CA4B /* LlamaCpp */,
+				5BAC131C0F549CB0932BFF8F /* VRMKit */,
+				D2E9A9F98DCB46846C913758 /* VRMRealityKit */,
+			);
+			productName = CharaTalk;
+			productReference = 85F15A649655BAEE45BDFC14 /* CharaTalk.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		59A1A4F4FBF7F6F7D5237053 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					D7EE823F2ED11BCE21460170 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B5B58E49E79B54135D9210EA /* Build configuration list for PBXProject "CharaTalk" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BCD90483FB8273275D2D85BA;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8B39D5903264BE5B0066F291 /* XCLocalSwiftPackageReference "Packages/IrodoriSpeechCpp" */,
+				AF3456ED9D91D7750651A512 /* XCLocalSwiftPackageReference "." */,
+				F7AE85E8F2F0F0567D89291F /* XCLocalSwiftPackageReference "Packages/LlamaCpp" */,
+				D86ED78138F38ADA802FC80F /* XCLocalSwiftPackageReference "Packages/VRMKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0D823DCB374498C543CFD04A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D7EE823F2ED11BCE21460170 /* CharaTalk */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		99A5AE4031665C6F18713D03 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1565C0DDEFCAAE8F165B6E0A /* Assets.xcassets in Resources */,
+				C897846F4091F7F319010B20 /* default_avatar.vrm in Resources */,
+				C897846F4091F7F319010B01 /* LICENSE in Resources */,
+				C897846F4091F7F319010B03 /* NOTICE in Resources */,
+				C897846F4091F7F319010B05 /* THIRD_PARTY_NOTICES.md in Resources */,
+				C897846F4091F7F319010B07 /* LICENSES in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3D2BD528D380D7F35B61E820 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9C554F055255DEF2442F3BF2 /* AppSettings.swift in Sources */,
+				C897846F4091F7F319010A17 /* TTSSynthesisMode.swift in Sources */,
+				AD4224FE6BFDD419C5F6EDB4 /* AppTheme.swift in Sources */,
+				7290690994992997F5450C15 /* AudioSpeechPlayer.swift in Sources */,
+				C897846F4091F7F319010A23 /* ConversationPerformance.swift in Sources */,
+				C897846F4091F7F319010A25 /* SpeechSubtitleState.swift in Sources */,
+				E8E24D68F587059D5A9F8746 /* CharaTalkApp.swift in Sources */,
+				B8669C6AA30C510D4CD620F7 /* ChatGPTAuthManager.swift in Sources */,
+				C897846F4091F7F319010A11 /* ChatGPTOAuth.swift in Sources */,
+				C897846F4091F7F319010A13 /* ChatGPTModel.swift in Sources */,
+				C897846F4091F7F319010A15 /* ChatGPTInference.swift in Sources */,
+				C897846F4091F7F319010A19 /* GeminiInference.swift in Sources */,
+				C897846F4091F7F319010A21 /* GeminiSettingsView.swift in Sources */,
+				F801CD518750E643CAEBB6CC /* ChatMessage.swift in Sources */,
+				25DAB2FB281CC0EA992CF2F4 /* ChatOverlayView.swift in Sources */,
+				E3068F7D5E14B8C69379464F /* ContentView.swift in Sources */,
+				0135107B7F25D500C6903186 /* ConversationViewModel.swift in Sources */,
+				B05132058DE9B8D168DC6CD6 /* LLMClient.swift in Sources */,
+				A36E22D7E66592B542170328 /* LocalLLMManager.swift in Sources */,
+				6BFA661F8CB16D701F5A6E99 /* SentenceSplitter.swift in Sources */,
+				F055698873E8AA3269A78D2C /* SettingsView.swift in Sources */,
+				E822EE0ED3219FA9F89AABF0 /* SileroVADDetector.swift in Sources */,
+				130F0A5034F5A2D7451E940C /* SpeechAnalyzerService.swift in Sources */,
+				471A5A82BE2476CA17B8CBAE /* SpeechTTSManager.swift in Sources */,
+				13C66ED9905B8D4A2B2062B9 /* VRMCharacterController.swift in Sources */,
+				3D7B9BB717CABA9EDF5EE04B /* VRMRealityView.swift in Sources */,
+				7A7BBC064DBF4508C277C899 /* VoiceReferenceManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		91AB56E3937538D22B8D4F43 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3362KQ9G;
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aituber.charatalk;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B091D9278A4C2B8222F4B32F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C1C60CA86B9392D954CD1DFE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3362KQ9G;
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aituber.charatalk;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		F316859557307DEB1FF8A6BD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B5B58E49E79B54135D9210EA /* Build configuration list for PBXProject "CharaTalk" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B091D9278A4C2B8222F4B32F /* Debug */,
+				F316859557307DEB1FF8A6BD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DBFE73D86DD00A20A00BC832 /* Build configuration list for PBXNativeTarget "CharaTalk" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				91AB56E3937538D22B8D4F43 /* Debug */,
+				C1C60CA86B9392D954CD1DFE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		8B39D5903264BE5B0066F291 /* XCLocalSwiftPackageReference "Packages/IrodoriSpeechCpp" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/IrodoriSpeechCpp;
+		};
+		AF3456ED9D91D7750651A512 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+		D86ED78138F38ADA802FC80F /* XCLocalSwiftPackageReference "Packages/VRMKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/VRMKit;
+		};
+		F7AE85E8F2F0F0567D89291F /* XCLocalSwiftPackageReference "Packages/LlamaCpp" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/LlamaCpp;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		017C4F9D983BB2D2D879CA4B /* LlamaCpp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LlamaCpp;
+		};
+		4A9FAE67C703381CEF919985 /* IrodoriSpeechCpp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IrodoriSpeechCpp;
+		};
+		5BAC131C0F549CB0932BFF8F /* VRMKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VRMKit;
+		};
+		8ED9860EFF7B27B5C9F959B6 /* IrodoriTTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IrodoriTTS;
+		};
+		D2E9A9F98DCB46846C913758 /* VRMRealityKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VRMRealityKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 59A1A4F4FBF7F6F7D5237053 /* Project object */;
+}

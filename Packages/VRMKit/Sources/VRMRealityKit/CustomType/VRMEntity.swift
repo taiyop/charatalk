@@ -1,0 +1,549 @@
+#if canImport(RealityKit)
+import CoreGraphics
+import Foundation
+import OSLog
+import RealityKit
+import simd
+import VRMKit
+import VRMKitRuntime
+
+/// Carries the loaded VRM on the entity, so `clone(recursive:)` copies still answer
+/// ``VRMEntity/vrm``.
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+struct VRMComponent: Component {
+    let vrm: VRM
+}
+
+/// The root entity of a loaded VRM model, and the runtime that animates it.
+///
+/// A plain `Entity`, so adding it to a scene is all its lifetime needs: the parent
+/// owns it, and ``VRMUpdateSystem`` animates it while it stays in the scene.
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+public final class VRMEntity: GLTFEntity {
+    private static let logger = Logger(subsystem: "com.github.tattn.VRMKit", category: "Expression")
+
+    /// The VRM this entity was loaded from.
+    ///
+    /// - Precondition: the entity came from a ``VRMEntityLoader``, not from
+    ///   ``init()``.
+    public var vrm: VRM {
+        guard let vrm = components[VRMComponent.self]?.vrm else {
+            preconditionFailure("This VRMEntity carries no VRM. Load it with VRMEntityLoader.")
+        }
+        return vrm
+    }
+
+    public let humanoid = Humanoid()
+
+    /// The expression accumulation and dirty tracking VRM defines; this entity
+    /// only writes the results out.
+    private let expressions = ExpressionRuntime<Entity>()
+    var expressionClips: [ExpressionKey: ExpressionClip] { expressions.clips }
+    private var firstPersonAnnotations: [FirstPersonAnnotation] = []
+    private var springBones = SpringBoneRig<GLTFPoseNode>()
+    private var nodeConstraints = NodeConstraintRig<GLTFPoseNode>()
+    private var lookAt = LookAtRig<GLTFPoseNode>()
+    private var deformedMeshesByMeshEntity: [Entity.ID: [GLTFDeformedMesh]] = [:]
+    private var updateHandlers: [VRMUpdateStage: @MainActor (TimeInterval) -> Void] = [:]
+
+    /// Minimum interval (in seconds) between ``update(deltaTime:)`` executions.
+    /// Set to `1.0 / 60.0` or `1.0 / 30.0` to throttle CPU/GPU deformation and SpringBone physics on 120Hz ProMotion displays.
+    ///
+    /// Throttling only skips frames: a step still advances by all the time elapsed since the
+    /// previous one, so the simulation keeps pace with real time.
+    public var minimumUpdateInterval: TimeInterval {
+        get { updatePacer.minimumUpdateInterval }
+        set { updatePacer.minimumUpdateInterval = newValue }
+    }
+
+    private var updatePacer = VRMUpdatePacer()
+
+    private lazy var expressionApplier = ExpressionApplier<Entity>(
+        setMorphWeight: { [unowned self] weight, targetIndex, mesh in
+            applyBlendShapeWeight(weight, targetIndex: targetIndex, on: mesh)
+        },
+        setMaterialColor: { [unowned self] color, type, materialIndex in
+            applyMaterialColor(color, type: type, materialIndex: materialIndex)
+        },
+        setTextureTransform: { [unowned self] scale, offset, rotation, materialIndex in
+            applyTextureTransform(scale: scale, offset: offset, rotation: rotation, materialIndex: materialIndex)
+        },
+        didApply: { [unowned self] in
+            flushDirtyMaterialStates()
+        }
+    )
+
+    /// Registers the components and system this entity relies on, exactly once per process.
+    /// RealityKit instantiates a registered system for every scene, existing ones included,
+    /// so registering on first use is enough.
+    @MainActor private static let registerRealityKitTypes: Void = {
+        VRMComponent.registerComponent()
+        VRMUpdateComponent.registerComponent()
+        VRMUpdateSystem.registerSystem()
+    }()
+
+    init(vrm: VRM, document: GLTFDocument, sceneIndex: Int, outputColorSpace: GLTFOutputColorSpace) {
+        super.init(document: document, sceneIndex: sceneIndex, outputColorSpace: outputColorSpace)
+        _ = Self.registerRealityKitTypes
+        components.set(VRMComponent(vrm: vrm))
+        components.set(VRMUpdateComponent())
+    }
+
+    /// Also builds the `clone(recursive:)` copies, which inherit the ``VRMComponent``
+    /// but not the runtime bindings, so they only render.
+    public required init() {
+        super.init()
+        _ = Self.registerRealityKitTypes
+    }
+
+    /// Whether ``VRMUpdateSystem`` calls ``update(deltaTime:)`` on every render frame.
+    /// Enabled by default; disable it to drive the timing yourself.
+    public var isAutomaticUpdateEnabled: Bool {
+        get { components.has(VRMUpdateComponent.self) }
+        set {
+            if newValue {
+                components.set(VRMUpdateComponent())
+            } else {
+                components.remove(VRMUpdateComponent.self)
+            }
+        }
+    }
+
+    /// How the spring bones swing: the wind pushing them, if any.
+    public var springBoneConfiguration: SpringBoneConfiguration {
+        get { springBones.configuration }
+        set { springBones.configuration = newValue }
+    }
+
+    /// Forgets the motion the spring bones carry between frames, so the next update
+    /// starts them at rest. Call it after teleporting the model.
+    public func resetSpringBones() {
+        springBones.reset()
+    }
+
+    /// Has `center` carry `share` of its motion into the tail of the spring-bone joint on
+    /// `joint`, where a spring's center carries all of it: 0 swings the joint as if it had
+    /// no center and 1 as if `center` were its spring's center. It takes the place of the
+    /// spring's center for that joint, and the spring bones start again at rest.
+    ///
+    /// `center` has to be above the joint, and no spring may swing it, as for a spring's center.
+    public func setSpringBoneCenter(_ center: Entity, share: Float, forJoint joint: Entity) throws {
+        guard let pose, let centerIndex = nodeIndex(of: center), let jointIndex = nodeIndex(of: joint) else {
+            throw VRMError._dataInconsistent("a spring-bone center and its joint have to be nodes of this model")
+        }
+        try springBones.setCenter(pose.nodes[centerIndex], share: share, forJoint: pose.nodes[jointIndex])
+    }
+
+    /// The versions disagree about which way a model faces, and loading converts no
+    /// coordinates, so the entity faces whichever way its VRM does.
+    public override var frontDirection: SIMD3<Float> {
+        if let frontDirectionCache { return frontDirectionCache }
+        let direction = vrm.forwardDirection
+        frontDirectionCache = direction
+        return direction
+    }
+
+    /// ``vrm`` is looked up in a component on every read, and apps ask for the front every
+    /// frame. A copy does not carry it over, so it reads its own.
+    private var frontDirectionCache: SIMD3<Float>?
+
+    func setUpHumanoid(nodes: [Entity?]) {
+        humanoid.setUp(boneNodes: vrm.boneNodes, nodes: nodes)
+    }
+
+    /// Called once per entity, right after its node hierarchy is built.
+    func setUpBlendShapes(nodes: [Entity?],
+                          meshes: [Int: [GLTFSceneBuilder.SceneMesh]],
+                          builder: GLTFSceneBuilder) {
+        expressions.setUp(
+            plan: VRMExpressionPlan(vrm: vrm),
+            morphBindings: { bind in
+                switch bind.target {
+                case .mesh(let index):
+                    return (meshes[index] ?? []).map {
+                        BlendShapeBinding(mesh: $0.entity, index: bind.index, weight: bind.weight)
+                    }
+                case .node(let index):
+                    guard let node = nodes[safe: index] ?? nil else { return [] }
+                    return [BlendShapeBinding(mesh: node, index: bind.index, weight: bind.weight)]
+                }
+            },
+            materialColorBinding: { expression, bind in
+                // A malformed bind only invalidates itself, never the whole load.
+                guard let baseValue = try? currentMaterialColor(withMaterialIndex: bind.material,
+                                                                type: bind.type,
+                                                                builder: builder) else {
+                    Self.logger.warning("""
+                    Skipping invalid MaterialColorBind. \
+                    expression=\(expression, privacy: .public) materialIndex=\(bind.material)
+                    """)
+                    return nil
+                }
+                return ExpressionMaterialColorBinding(material: bind.material,
+                                                      type: bind.type,
+                                                      targetValue: bind.targetValue,
+                                                      baseValue: baseValue)
+            },
+            textureTransformBinding: { expression, bind in
+                guard let base = try? currentTextureTransform(withMaterialIndex: bind.material,
+                                                              builder: builder) else {
+                    Self.logger.warning("""
+                    Skipping invalid TextureTransformBind. \
+                    expression=\(expression, privacy: .public) materialIndex=\(bind.material)
+                    """)
+                    return nil
+                }
+                return ExpressionTextureTransformBinding(material: bind.material,
+                                                         baseScale: base.scale,
+                                                         baseOffset: base.offset,
+                                                         baseRotation: base.rotation,
+                                                         targetScale: bind.scale,
+                                                         targetOffset: bind.offset)
+            }
+        )
+    }
+
+    /// What each camera draws of each mesh. The `auto` cut is made as the meshes are built,
+    /// so this only pairs it with the entity drawing it.
+    func setUpFirstPerson(plan: VRMFirstPersonPlan,
+                          nodes: [Entity?],
+                          meshes: [Int: [GLTFSceneBuilder.SceneMesh]]) {
+        let head = plan.headNode.flatMap { nodes[safe: $0] ?? nil }
+        firstPersonAnnotations = meshes.sorted { $0.key < $1.key }.flatMap { meshIndex, sceneMeshes in
+            sceneMeshes.map { sceneMesh in
+                FirstPersonAnnotation(entity: sceneMesh.entity,
+                                      type: plan.annotation(ofNodeAt: sceneMesh.nodeIndex, meshIndex: meshIndex),
+                                      // An unskinned mesh cannot be cut, so the head takes it whole.
+                                      hidesAutoInFirstPerson: sceneMesh.entity.isSameOrDescendant(of: head))
+            }
+        }
+        setFirstPersonRenderMode(.thirdPerson)
+    }
+
+    func setUpNodeConstraints(gltfNodes: [GLTF.Node],
+                              hierarchy: GLTFNodeHierarchy,
+                              builder: GLTFSceneBuilder) throws {
+        nodeConstraints = try NodeConstraintRig.make(vrm: vrm, gltfNodes: gltfNodes, hierarchy: hierarchy) {
+            try poseNode(at: $0, builder: builder)
+        }
+    }
+
+    func setUpSpringBones(builder: GLTFSceneBuilder) throws {
+        springBones = try SpringBoneRig.make(vrm: vrm) { try poseNode(at: $0, builder: builder) }
+    }
+
+    func setUpLookAt(builder: GLTFSceneBuilder) throws {
+        lookAt = try LookAtRig.make(vrm: vrm) { try poseNode(at: $0, builder: builder) }
+    }
+
+    /// The pose's node for a glTF node, which the scene has to have built.
+    private func poseNode(at index: Int, builder: GLTFSceneBuilder) throws -> GLTFPoseNode {
+        _ = try builder.node(withNodeIndex: index)
+        guard let pose, pose.nodes.indices.contains(index) else {
+            throw VRMError._dataInconsistent("node \(index) is not part of this model's pose")
+        }
+        return pose.nodes[index]
+    }
+
+    /// What the eyes follow, nil to leave them at rest.
+    ///
+    /// A world-space position is kept on as either it or the model moves, so a model
+    /// looking at the camera only has to be told where the camera is. A model stating no
+    /// look-at keeps its eyes still whatever this is set to.
+    public var lookAtTarget: LookAtTarget? {
+        get { lookAt.target }
+        set {
+            lookAt.target = newValue
+            refreshPoseRoot()
+            applyLookAt()
+        }
+    }
+
+    private func applyLookAt() {
+        switch lookAt.apply() {
+        case .unchanged, .posedBones:
+            break
+        case .weights(let weights):
+            guard expressions.storeWeights(weights) else { return }
+            expressions.apply(with: expressionApplier)
+        }
+    }
+
+    /// The color a `materialColorBind` starts from. A state animating that color keeps
+    /// it; everything else reads it from the RealityKit material.
+    func currentMaterialColor(withMaterialIndex index: Int,
+                              type: VRM1.Expressions.Expression.MaterialColorBind.MaterialColorType,
+                              builder: GLTFSceneBuilder) throws -> SIMD4<Float> {
+        if let color = materialStates[index]?.animatable?.color(for: type) {
+            return color
+        }
+        return try builder.material(withMaterialIndex: index).currentColor(for: type, in: outputColorSpace)
+    }
+
+    /// The UV transform a `textureTransformBind` starts from. A state animating it keeps
+    /// it; everything else reads it from the RealityKit material.
+    func currentTextureTransform(withMaterialIndex index: Int,
+                                 builder: GLTFSceneBuilder) throws -> MaterialParameterTypes.TextureCoordinateTransform {
+        if let transform = materialStates[index]?.animatable?.textureTransform {
+            return transform
+        }
+        return try builder.material(withMaterialIndex: index).currentTextureTransform
+    }
+
+    /// Advances the model by one frame: its animations, the code set with
+    /// ``setUpdateHandler(_:at:)``, node constraints, the gaze, spring bones and skinning, in
+    /// that order.
+    ///
+    /// ``VRMUpdateSystem`` calls this once per render frame, so set
+    /// ``isAutomaticUpdateEnabled`` to `false` before driving the timing manually. A bone
+    /// posed through ``GLTFEntity/pose`` needs nothing more; one posed on its entity has to
+    /// be followed by ``GLTFEntity/invalidateSkinPose()``.
+    public func update(deltaTime: TimeInterval) {
+        guard let effectiveDeltaTime = updatePacer.advance(deltaTime: deltaTime) else { return }
+        refreshPoseRoot()
+        adoptNodeEntitiesPosedFromOutside()
+        advanceAnimations(deltaTime: effectiveDeltaTime)
+        if let handler = updateHandlers[.afterAnimation] {
+            handler(effectiveDeltaTime)
+            // The handler may have moved the model, which the runtimes below measure from.
+            refreshPoseRoot()
+        }
+        followPose(deltaTime: effectiveDeltaTime)
+        updateHandlers[.beforeSkinning]?(effectiveDeltaTime)
+        flushDeformation()
+    }
+
+    /// Advances only what follows the pose: node constraints, the gaze and spring bones, then
+    /// skins the result. No animation advances and no update handler runs, so a pose held still
+    /// keeps its shape while its spring bones settle.
+    public func updateSecondaryMotion(deltaTime: TimeInterval) {
+        refreshPoseRoot()
+        adoptNodeEntitiesPosedFromOutside()
+        followPose(deltaTime: max(0, deltaTime))
+        flushDeformation()
+    }
+
+    private func followPose(deltaTime: TimeInterval) {
+        nodeConstraints.apply()
+        // After the constraints, which may have posed the head the gaze is measured from,
+        // and before the springs, which nothing about the eyes feeds into.
+        applyLookAt()
+        _ = springBones.update(deltaTime: deltaTime)
+    }
+
+    /// Runs `handler` at `stage` of every ``update(deltaTime:)``, with the frame's time, in
+    /// place of the one set there before; nil removes it. This is where code that poses the
+    /// model every frame, such as tracking or IK, fits into the frame.
+    public func setUpdateHandler(_ handler: (@MainActor (TimeInterval) -> Void)?, at stage: VRMUpdateStage) {
+        updateHandlers[stage] = handler
+    }
+
+    public func setExpression(value: CGFloat, for key: ExpressionKey) {
+        setExpressions([key: value])
+    }
+
+    /// Sets several expression weights and re-applies the result once. Applying
+    /// re-accumulates every active clip, so prefer this over repeated
+    /// ``setExpression(value:for:)`` calls in one frame.
+    public func setExpressions(_ weights: [ExpressionKey: CGFloat]) {
+        guard expressions.storeWeights(weights) else { return }
+        expressions.apply(with: expressionApplier)
+    }
+
+    /// The handle to set `key` with in ``ExpressionWeights``, or nil when the model offers no such
+    /// expression. Look it up once: a handle holds for as long as the model.
+    public func expressionHandle(for key: ExpressionKey) -> ExpressionHandle? {
+        expressions.handle(for: key)
+    }
+
+    /// Expression weights for this model, none set yet, to set by handle and hand to
+    /// ``setExpressions(_:)-(ExpressionWeights)`` every frame.
+    public func makeExpressionWeights() -> ExpressionWeights {
+        ExpressionWeights(count: expressions.expressionCount)
+    }
+
+    /// Sets the weights `weights` sets and re-applies the result once, for a caller driving the
+    /// face every frame, which then hashes no key. `weights` has to come from this model's
+    /// ``makeExpressionWeights()``.
+    public func setExpressions(_ weights: ExpressionWeights) {
+        guard expressions.storeWeights(weights) else { return }
+        expressions.apply(with: expressionApplier)
+    }
+
+    public func expression(for key: ExpressionKey) -> CGFloat {
+        CGFloat(expressions.weight(for: key))
+    }
+
+    /// The expressions the model offers, each paired with the name it states them
+    /// under.
+    ///
+    /// A VRM 0.x model's blend shape groups come in its own order; a VRM 1.0
+    /// model's presets come first, then its custom expressions by name.
+    public var availableExpressions: [ExpressionInfo] {
+        expressions.availableExpressions
+    }
+
+    public func setFirstPersonRenderMode(_ mode: FirstPersonRenderMode) {
+        for annotation in firstPersonAnnotations {
+            // An `auto` mesh is cut rather than hidden, so the body below it stays.
+            if annotation.type == .auto, applyFirstPersonCut(mode, to: annotation.entity) { continue }
+            annotation.entity.isEnabled = !annotation.type.isHidden(in: mode,
+                                                                    hidesAutoInFirstPerson: annotation.hidesAutoInFirstPerson)
+        }
+    }
+
+    /// Draws `entity` with the triangles `mode` asks for, and says whether it was cut.
+    /// The cut is baked per part, so a mesh worn head to foot keeps its body while
+    /// the head's parts and triangles go.
+    private func applyFirstPersonCut(_ mode: FirstPersonRenderMode, to entity: Entity) -> Bool {
+        var cut = false
+        for modelEntity in entity.modelEntitiesInHierarchy {
+            guard modelEntity.deformedMesh?.hasFirstPersonCut == true else { continue }
+            cut = true
+            modelEntity.setMergedFirstPerson(mode == .firstPerson)
+        }
+        return cut
+    }
+
+    private func applyTextureTransform(scale: SIMD2<Float>,
+                                       offset: SIMD2<Float>,
+                                       rotation: Float,
+                                       materialIndex: Int) {
+        applyMaterialValue(ofMaterial: materialIndex,
+                           toState: { $0.setTextureTransform(scale: scale, offset: offset, rotation: rotation) },
+                           toMaterial: { $0.settingTextureTransform(scale: scale, offset: offset, rotation: rotation) })
+    }
+
+    private func applyBlendShapeWeight(_ weight: Float, targetIndex: Int, on mesh: Entity) {
+        for deformedMesh in deformedMeshes(under: mesh) {
+            deformedMesh.setBlendShapeWeight(weight, forTarget: targetIndex)
+        }
+    }
+
+    /// The deformed meshes a mesh entity draws, found once rather than by walking the
+    /// entity's hierarchy on every write.
+    private func deformedMeshes(under mesh: Entity) -> [GLTFDeformedMesh] {
+        if let cached = deformedMeshesByMeshEntity[mesh.id] { return cached }
+        let meshes = mesh.modelEntitiesInHierarchy.compactMap(\.deformedMesh)
+        deformedMeshesByMeshEntity[mesh.id] = meshes
+        return meshes
+    }
+}
+
+/// Where in ``VRMEntity/update(deltaTime:)`` a handler set with
+/// ``VRMEntity/setUpdateHandler(_:at:)`` runs.
+public enum VRMUpdateStage: Sendable {
+    /// After the animations pose the model, before the node constraints, the gaze and the
+    /// spring bones read the pose.
+    case afterAnimation
+    /// After the spring bones, before the pose is skinned.
+    case beforeSkinning
+}
+
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+private struct FirstPersonAnnotation {
+    let entity: Entity
+    let type: FirstPersonAnnotationType
+    let hidesAutoInFirstPerson: Bool
+}
+
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+private extension Entity {
+    func isSameOrDescendant(of ancestor: Entity?) -> Bool {
+        guard let ancestor else { return false }
+        var entity: Entity? = self
+        while let current = entity {
+            if current === ancestor {
+                return true
+            }
+            entity = current.parent
+        }
+        return false
+    }
+}
+
+/// Materials whose UV transform VRMKit can read and write uniformly.
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+protocol TextureTransformableMaterial: Material {
+    var textureCoordinateTransform: MaterialParameterTypes.TextureCoordinateTransform { get set }
+}
+
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+extension UnlitMaterial: TextureTransformableMaterial {}
+
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+extension PhysicallyBasedMaterial: TextureTransformableMaterial {}
+
+#if !os(visionOS)
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+extension CustomMaterial: TextureTransformableMaterial {}
+#endif
+
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+extension Material {
+    var currentTextureTransform: MaterialParameterTypes.TextureCoordinateTransform {
+        (self as? any TextureTransformableMaterial)?.textureCoordinateTransform
+            ?? MaterialParameterTypes.TextureCoordinateTransform()
+    }
+
+    func currentColor(for type: VRM1.Expressions.Expression.MaterialColorBind.MaterialColorType,
+                      in outputColorSpace: GLTFOutputColorSpace) -> SIMD4<Float> {
+        switch self {
+        case let material as UnlitMaterial:
+            switch type {
+            case .color:
+                return outputColorSpace.components(of: material.color.tint)
+            case .emissionColor, .shadeColor, .matcapColor, .rimColor, .outlineColor:
+                return SIMD4<Float>(1, 1, 1, 1)
+            }
+        case let material as PhysicallyBasedMaterial:
+            switch type {
+            case .color:
+                return outputColorSpace.components(of: material.baseColor.tint)
+            case .emissionColor:
+                return outputColorSpace.components(of: material.emissiveColor.color)
+            // MToon-only colors have no meaning on the PBR fallback material.
+            case .shadeColor, .matcapColor, .rimColor, .outlineColor:
+                return SIMD4<Float>(1, 1, 1, 1)
+            }
+        default:
+            return SIMD4<Float>(1, 1, 1, 1)
+        }
+    }
+
+    func settingTextureTransform(scale: SIMD2<Float>, offset: SIMD2<Float>, rotation: Float = 0) -> Material {
+        guard var material = self as? any TextureTransformableMaterial else { return self }
+        material.textureCoordinateTransform = MaterialParameterTypes.TextureCoordinateTransform(offset: offset,
+                                                                                               scale: scale,
+                                                                                               rotation: rotation)
+        return material
+    }
+
+    func settingColor(_ color: VRMColor,
+                      for type: VRM1.Expressions.Expression.MaterialColorBind.MaterialColorType) -> Material {
+        switch self {
+        case var material as UnlitMaterial:
+            switch type {
+            case .color:
+                material.color.tint = color
+            case .emissionColor, .shadeColor, .matcapColor, .rimColor, .outlineColor:
+                break
+            }
+            return material
+        case var material as PhysicallyBasedMaterial:
+            switch type {
+            case .color:
+                material.baseColor.tint = color
+            case .emissionColor:
+                material.emissiveColor.color = color
+            case .shadeColor, .matcapColor, .rimColor, .outlineColor:
+                break
+            }
+            return material
+        default:
+            return self
+        }
+    }
+
+}
+#endif

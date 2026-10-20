@@ -1,0 +1,26 @@
+# Xcode
+.DS_Store
+*/build/*
+*.moved-aside
+*.xcuserstate
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+.derivedData/
+DerivedData/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Code injection
+iOSInjectionProject/
+
+# other
+docs/

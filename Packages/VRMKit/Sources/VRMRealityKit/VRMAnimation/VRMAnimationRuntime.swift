@@ -1,0 +1,307 @@
+#if canImport(RealityKit)
+import Foundation
+import RealityKit
+import simd
+import VRMKit
+import VRMKitRuntime
+
+/// One VRM animation (`VRMC_vrm_animation`) decoded and retargeted onto the
+/// humanoid bones and expressions of a ``VRMEntity``.
+///
+/// The spec rests both skeletons in T-pose, so a bone's animated local rotation carries
+/// over after re-expressing it between the two rest orientations, and the hips translation
+/// scales by the rest hips-height ratio. A VRM 0.x model faces the other way than a
+/// `.vrma` is authored in, so its whole animation is turned 180° around Y as well.
+///
+/// The gaze retargets as angles rather than transforms, so it carries over whichever way
+/// either side faces.
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+@MainActor
+final class VRMAnimationRuntime {
+    /// Every retargeted channel of one animation node, so a bone animated on rotation
+    /// and translation takes a single `Transform` write per frame.
+    private struct BoneBinding {
+        let nodeIndex: Int
+        var rotation: RotationChannel?
+        var translation: TranslationChannel?
+    }
+
+    /// One source rotation channel re-expressed as the world-space rotation its bone
+    /// adds to its parent's, identity while the animation rests.
+    private struct RotationDelta {
+        let track: GLTFKeyframeTrack<simd_quatf>
+        /// The animation parent's rest world rotation, with the VRM 0.x facing flip folded in.
+        let pre: simd_quatf
+        /// The inverse of the animation node's rest world rotation, flip folded in.
+        let post: simd_quatf
+
+        func value(at time: Float) -> simd_quatf {
+            pre * track.value(at: time) * post
+        }
+    }
+
+    private struct RotationChannel {
+        /// The deltas of the source bones between this one and the nearest ancestor the
+        /// target model also has, root first and this bone's own last, so a bone the
+        /// model lacks still passes its rotation down.
+        let deltas: [RotationDelta]
+        /// The inverse of the target parent's rest world rotation.
+        let pre: simd_quatf
+        /// The target node's rest world rotation.
+        let post: simd_quatf
+
+        func value(at time: Float) -> simd_quatf {
+            deltas.reduce(pre) { $0 * $1.value(at: time) } * post
+        }
+    }
+
+    private struct TranslationChannel {
+        let track: GLTFKeyframeTrack<SIMD3<Float>>
+        /// Takes the animation-local translation through its parent's rest transform into
+        /// model space, turns and scales it there, then down into the target parent's:
+        /// a bone's parents need not rest untransformed.
+        let transform: simd_float4x4
+
+        func value(at time: Float) -> SIMD3<Float> {
+            transform.multiplyPoint(track.value(at: time))
+        }
+    }
+
+    private struct ExpressionBinding {
+        /// Every expression the node's weight drives, sampled once for all.
+        let keys: [ExpressionKey]
+        let track: GLTFKeyframeTrack<SIMD3<Float>>
+    }
+
+    /// Weak, so the runtime does not keep the model it poses alive.
+    private weak var entity: VRMEntity?
+    private let boneBindings: [BoneBinding]
+    private let expressionBindings: [ExpressionBinding]
+    /// The gaze the animation states as the rotation of its look-at node. Its
+    /// `offsetFromHeadBone` is left unread: it places the source's own gaze origin, which
+    /// only retargeting a point rather than angles would need.
+    private let gazeTrack: GLTFKeyframeTrack<simd_quatf>?
+
+    /// Metadata the playback controller shows.
+    let name: String?
+    let duration: TimeInterval
+
+    init(animation vrmAnimation: VRMAnimation, animationIndex: Int, entity: VRMEntity) throws {
+        self.entity = entity
+        let gltf = vrmAnimation.document.gltf
+        let animation = try gltf.load(\.animations, at: animationIndex)
+        let decoder = GLTFAnimationDecoder(document: vrmAnimation.document)
+
+        let flip = entity.vrm.forwardDirection.z < 0
+            ? simd_quatf(angle: .pi, axis: SIMD3<Float>(0, 1, 0))
+            : quat_identity_float
+
+        // The animation's document has nowhere to cache one; the model's does.
+        let animationRest = try GLTFRestPose(nodes: gltf.nodes)
+        let targetRest = try entity.restPose()
+
+        var boneByNode: [Int: HumanoidBone] = [:]
+        for (name, humanBone) in vrmAnimation.humanoid?.humanBones ?? [:] {
+            guard let bone = Self.targetBone(named: name) else { continue }
+            boneByNode[humanBone.node] = bone
+        }
+        // Node → the expressions its weight drives. Nothing keeps two off one node, and
+        // dropping either would be arbitrary.
+        var expressionKeysByNode: [Int: [ExpressionKey]] = [:]
+        if let expressions = vrmAnimation.expressions {
+            for (name, expression) in expressions.preset ?? [:] {
+                guard let preset = ExpressionPreset(name: name) else { continue }
+                expressionKeysByNode[expression.node, default: []].append(.preset(preset))
+            }
+            for (name, expression) in expressions.custom ?? [:] {
+                expressionKeysByNode[expression.node, default: []].append(.custom(name))
+            }
+        }
+
+        func targetNode(for bone: HumanoidBone) -> Int? {
+            entity.humanoid.nodeIndex(for: bone)
+        }
+
+        var hipsScale: Float = 1
+        if let animationHips = vrmAnimation.humanoid?.humanBones[HumanoidBone.hips.rawValue]?.node,
+           let targetHips = targetNode(for: .hips) {
+            let animationHeight = animationRest.worldPosition(at: animationHips).y
+            let targetHeight = targetRest.worldPosition(at: targetHips).y
+            if animationHeight > .ulpOfOne, targetHeight > .ulpOfOne {
+                hipsScale = targetHeight / animationHeight
+            }
+        }
+        // What the hips motion takes in model space between the two skeletons: the
+        // VRM 0.x facing flip, and the rest hips-height ratio.
+        let modelTransform = simd_float4x4(flip) * simd_float4x4(diagonal: SIMD4(hipsScale, hipsScale, hipsScale, 1))
+
+        // Decoded first and bound afterwards: a bone the target model lacks hands its
+        // rotation to descendants whose channels may come in any order.
+        var rotationTracks: [Int: GLTFKeyframeTrack<simd_quatf>] = [:]
+        var translationTracks: [Int: GLTFKeyframeTrack<SIMD3<Float>>] = [:]
+        var expressions: [ExpressionBinding] = []
+        var gaze: GLTFKeyframeTrack<simd_quatf>?
+
+        for channel in try decoder.validatedChannels(of: animation) {
+            let times = try decoder.times(at: channel.sampler.input)
+
+            if channel.nodeIndex == vrmAnimation.lookAt?.node {
+                // The gaze rides on the look-at node's rotation, and nothing else about
+                // that node is stated.
+                guard channel.path == .rotation else { continue }
+                gaze = try .init(times: times,
+                                 interpolation: channel.sampler.interpolation,
+                                 values: decoder.quaternions(at: channel.sampler.output,
+                                                             interpolation: channel.sampler.interpolation))
+                continue
+            }
+
+            if let keys = expressionKeysByNode[channel.nodeIndex] {
+                // The expression weight rides on the node's translation X.
+                guard channel.path == .translation else { continue }
+                expressions.append(ExpressionBinding(keys: keys,
+                                                     track: try .init(times: times,
+                                                                      interpolation: channel.sampler.interpolation,
+                                                                      values: decoder.vector3s(at: channel.sampler.output))))
+                continue
+            }
+
+            // Channels of nodes mapped to nothing are skipped: bones outside the VRM
+            // humanoid, and whatever else a file animates.
+            guard animationRest.contains(channel.nodeIndex),
+                  boneByNode[channel.nodeIndex] != nil else { continue }
+
+            switch channel.path {
+            case .rotation:
+                rotationTracks[channel.nodeIndex] = try .init(
+                    times: times,
+                    interpolation: channel.sampler.interpolation,
+                    values: decoder.quaternions(at: channel.sampler.output,
+                                                interpolation: channel.sampler.interpolation))
+            case .translation:
+                translationTracks[channel.nodeIndex] = try .init(times: times,
+                                                                 interpolation: channel.sampler.interpolation,
+                                                                 values: decoder.vector3s(at: channel.sampler.output))
+            case .scale, .weights:
+                // The spec forbids scaling humanoid bones, and their meshes' morph weights
+                // are the expressions' to drive.
+                continue
+            }
+        }
+
+        func delta(at nodeIndex: Int) -> RotationDelta? {
+            rotationTracks[nodeIndex].map {
+                RotationDelta(track: $0,
+                              pre: flip * animationRest.parentWorldRotation(at: nodeIndex),
+                              post: animationRest.worldRotation(at: nodeIndex).inverse * flip.inverse)
+            }
+        }
+
+        /// The deltas of the source bones above `nodeIndex` that ``RotationChannel/deltas``
+        /// takes ahead of the bone's own, root first.
+        func skippedAncestorDeltas(above nodeIndex: Int) -> [RotationDelta] {
+            var deltas: [RotationDelta] = []
+            var ancestor = animationRest.parent(at: nodeIndex)
+            while let index = ancestor {
+                if let bone = boneByNode[index] {
+                    guard targetNode(for: bone) == nil else { break }
+                    if let delta = delta(at: index) {
+                        deltas.append(delta)
+                    }
+                }
+                ancestor = animationRest.parent(at: index)
+            }
+            return deltas.reversed()
+        }
+
+        var bones: [BoneBinding] = []
+        for (nodeIndex, bone) in boneByNode {
+            guard animationRest.contains(nodeIndex), let target = targetNode(for: bone) else { continue }
+
+            var deltas = skippedAncestorDeltas(above: nodeIndex)
+            if let own = delta(at: nodeIndex) {
+                deltas.append(own)
+            }
+            let rotation = deltas.isEmpty ? nil : RotationChannel(
+                deltas: deltas,
+                pre: targetRest.parentWorldRotation(at: target).inverse,
+                post: targetRest.worldRotation(at: target))
+            // The spec keeps every humanoid translation but the hips' out of a `.vrma`;
+            // one that carries them anyway is not retargeted.
+            let translation = (bone == .hips ? translationTracks[nodeIndex] : nil).map {
+                TranslationChannel(track: $0,
+                                   transform: targetRest.parentWorldMatrix(at: target).inverse
+                                       * modelTransform * animationRest.parentWorldMatrix(at: nodeIndex))
+            }
+            guard rotation != nil || translation != nil else { continue }
+            bones.append(BoneBinding(nodeIndex: target, rotation: rotation, translation: translation))
+        }
+
+        boneBindings = bones
+        // A stated gaze owns the look-at, so the look expressions a file carries as well
+        // would only double it: aiming the gaze is what weighs them, on a model whose
+        // look-at is expression-driven.
+        expressionBindings = gaze == nil ? expressions : expressions.compactMap { binding in
+            let keys = binding.keys.filter { $0.overrideGroup != .lookAt }
+            return keys.isEmpty ? nil : ExpressionBinding(keys: keys, track: binding.track)
+        }
+        gazeTrack = gaze
+
+        self.name = animation.name
+        self.duration = decoder.duration(of: animation)
+    }
+
+    /// The target model's bone for a `.vrma` humanoid bone name, or nil for one no bone
+    /// of the model is to take. A `.vrma` is VRM 1.0, as ``HumanoidBone`` names its
+    /// bones, so the spellings already agree.
+    private static func targetBone(named name: String) -> HumanoidBone? {
+        switch HumanoidBone(rawValue: name) {
+        // Gaze is look-at's to aim, so the eyes take no bone animation.
+        case .leftEye, .rightEye: nil
+        case let bone: bone
+        }
+    }
+}
+
+@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+extension VRMAnimationRuntime: GLTFAnimationApplying {
+    func apply(at time: Float, to pose: GLTFPose) {
+        for binding in boneBindings {
+            // The current transform is the base, so paths this animation does not drive
+            // keep whatever else wrote them.
+            var transform = pose.localTransform(ofNode: binding.nodeIndex)
+            if let channel = binding.rotation {
+                transform.rotation = channel.value(at: time)
+            }
+            if let channel = binding.translation {
+                transform.translation = channel.value(at: time)
+            }
+            pose.setLocalTransform(transform, ofNode: binding.nodeIndex)
+        }
+
+        applyExpressions(at: time)
+        applyGaze(at: time)
+    }
+
+    /// Sampled weights go to the entity in full every frame, so an animation started
+    /// later can take an expression over. ``VRMEntity/setExpressions(_:)`` drops the
+    /// ones that did not move.
+    private func applyExpressions(at time: Float) {
+        guard let entity, !expressionBindings.isEmpty else { return }
+        var weights: [ExpressionKey: CGFloat] = [:]
+        for binding in expressionBindings {
+            let weight = CGFloat(min(max(binding.track.value(at: time).x, 0), 1))
+            for key in binding.keys {
+                weights[key] = weight
+            }
+        }
+        // Sent together so the entity re-accumulates its bindings once.
+        entity.setExpressions(weights)
+    }
+
+    private func applyGaze(at time: Float) {
+        guard let entity, let gazeTrack else { return }
+        entity.lookAtTarget = .rotation(gazeTrack.value(at: time))
+    }
+}
+#endif
