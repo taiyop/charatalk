@@ -93,7 +93,6 @@ class LicensePackagingTests(unittest.TestCase):
     def test_model_revisions_match_production(self):
         paths = (
             "Packages/IrodoriSpeechCpp/Sources/IrodoriSpeechCpp/SpeechCppModelBundle.swift",
-            "Packages/IrodoriSpeechCpp/Sources/IrodoriSpeechCpp/ReazonSpeechModel.swift",
             "Packages/LlamaCpp/Sources/LlamaCpp/LFM2ModelBundle.swift",
             "Sources/IrodoriTTS/ModelVariant.swift",
         )
@@ -128,13 +127,6 @@ class LicensePackagingTests(unittest.TestCase):
             self.assertIn(meta["name"], text)
             self.assertIn(meta["authors"][0], text)
             self.assertIn(meta["licenseUrl"], text)
-
-    def test_former_avatar_attribution_is_retained(self):
-        # The current default_avatar.vrm is taiyop's model, not the former Seed-san.
-        for path in ("NOTICE", "README.md", "THIRD_PARTY_NOTICES.md"):
-            text = (ROOT / path).read_text(encoding="utf-8")
-            self.assertIn("Seed-san", text)
-            self.assertIn("VirtualCast, Inc.", text)
 
     def test_runtime_default_points_to_the_new_bundled_model(self):
         text = (ROOT / "App/Services/VRMCharacterController.swift").read_text(encoding="utf-8")

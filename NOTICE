@@ -13,8 +13,12 @@ This is a comparison snapshot, not a verified historical import revision.
 CharaTalk integration changes include playback/subtitle coordination, sentence
 and whole-response synthesis, audio/text processing, memory/cache handling,
 speech.cpp integration, LLM providers, VRM presentation, and license packaging.
+The unused Core ML TTS engine/native target and ReazonSpeech recognition wrappers
+were removed. Shared speech types and the Core ML AudioSeal implementation remain.
+The local VRMKit integration removes the unused MToon shader implementation and
+precompiled metallibs, retaining VRM/glTF parsing and Unlit/PBR rendering.
 Modified upstream source files carry a CharaTalk modification notice.
-Unresolved binary, shader and artwork provenance is documented in
+Unresolved binary, source and artwork provenance is documented in
 THIRD_PARTY_NOTICES.md; adding these notices does not certify those artifacts.
 The separately downloaded Core ML / AudioSeal bundle's upstream NOTICE is
 preserved in LICENSES/CoreML-NOTICE.txt.
@@ -32,14 +36,6 @@ The model is provided without
 warranties under that license. The Apache-2.0 code license does not override
 these model conditions; obtain separate permission or use another model for
 uses not permitted by them.
-
-Former avatar attribution (not bundled in the app): Seed-san, version 1
-Author and copyright: VirtualCast, Inc.
-VRM Public License 1.0: https://vrm.dev/licenses/1.0/
-Credit notation is required. This legacy model permits corporate commercial
-use, redistribution, modification and redistribution of modifications.
-The model is provided without warranties under that license. Its embedded
-license settings are preserved; no affiliation or endorsement is implied.
 
 ----- Upstream Irodori NOTICE (preserved verbatim) -----
 

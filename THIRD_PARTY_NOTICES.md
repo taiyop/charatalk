@@ -13,7 +13,7 @@ CharaTalkの独自コード・独自ドキュメントは [Apache-2.0](LICENSE) 
 
 | 部品・配置 | 条件・著作権 | 条文・確認状態 |
 | --- | --- | --- |
-| `Sources/IrodoriTTS`、`Sources/IrodoriNative`、`Packages/IrodoriSpeechCpp` の上流由来部分 | Corvelis/irodori-tts-iphone。Apache-2.0、Copyright 2026 StackChan Pet Talk contributors。部品別条件は下記 | [LICENSE](LICENSE)、上流表示を保持した [NOTICE](NOTICE) |
+| `Sources/IrodoriTTS`、`Packages/IrodoriSpeechCpp` の上流由来部分 | Corvelis/irodori-tts-iphone。Apache-2.0、Copyright 2026 StackChan Pet Talk contributors。部品別条件は下記 | [LICENSE](LICENSE)、上流表示を保持した [NOTICE](NOTICE) |
 | Irodori由来実装 | MIT、Copyright (c) 2026 Aratako | [MIT.txt](LICENSES/MIT.txt) |
 | ModernBERT Japanese関連 | MIT、Copyright (c) 2025 SB Intuitions | [ModernBERT-MIT.txt](LICENSES/ModernBERT-MIT.txt) |
 | AudioSeal関連 | MIT、Copyright (c) Meta Platforms, Inc. and affiliates. | [AudioSeal-MIT.txt](LICENSES/AudioSeal-MIT.txt) |
@@ -25,12 +25,18 @@ CharaTalkの独自コード・独自ドキュメントは [Apache-2.0](LICENSE) 
 | llama.cpp / ggml / mtmdランタイム | 上流はMIT、Copyright (c) 2023-2026 The ggml authors | [llama.cpp-MIT.txt](LICENSES/llama.cpp-MIT.txt)。**同梱バイナリのrevision・全構成は未確認** |
 | VRMKit / VRMKitRuntime / VRMRealityKit | 上流はMIT、Copyright (c) 2018 Tatsuya Tanaka | [VRMKit-MIT.txt](LICENSES/VRMKit-MIT.txt)。**同梱ソースの取り込みrevision・改変全体は未確認** |
 | VRMKit内MoreCodable | MIT、Copyright (c) 2018 Tatsuya Tanaka | [MoreCodable-MIT.txt](LICENSES/MoreCodable-MIT.txt)。既存の原文も保持 |
-| VRMRealityKit内MToonソース・metallib | 上流・派生元の確認が必要 | **未確認。VRMKitのMITを根拠なく代用しない** |
 
 ライセンス文の取得元・確認用snapshotは [LICENSES/README.md](LICENSES/README.md) に記載。
 Irodori SDKは確認用revision `e316752e21bcba8b28532c5050ac3a4cc1b5d130` と比較しました。
 これは実際の取り込みrevisionを確定したものではありません。変更した上流由来の
 ソースには変更表示を追加しています。残る確認事項は本書の「公開前チェック」を参照してください。
+
+未使用のCore ML版TTSエンジン／ネイティブターゲット、ReazonSpeechの認識ラッパー・モデル取得コード、
+MToonシェーダー実装・metallib、AuthenticationServicesの直接依存は除外しました。
+VRM/glTF内のMToon素材情報の読み取りとUnlit近似描画は保持します。
+speech.cppの共有ランタイム自体はTTSに必要なため維持し、バイナリは変更していません。
+ModernBERT・DACVAE・Descript由来部品は現行TTSにも関係し、AudioSealは音声透かしに使うため、
+それらの条文と取得元のNOTICEは引き続き保持します。
 
 ## モデル・素材
 
@@ -42,9 +48,6 @@ Irodori SDKは確認用revision `e316752e21bcba8b28532c5050ac3a4cc1b5d130` と�
   **個人の非営利利用のみ**。再配布・改変は許可、クレジットは任意です。
   ライセンス上無保証です。元ファイルのメタデータを変更せず同梱します。
   商用利用等には別途許諾または別モデルが必要で、コードのApache-2.0はモデル条件を置き換えません。
-- 旧モデル（**Seed-san — VirtualCast, Inc.**。現在の同名ファイルとは別のモデル）は
-  アプリへ同梱しません。履歴としてVRM Public License 1.0に基づく
-  作者・著作権・ライセンス表示を保持します（クレジット必須）。
 - 標準モデルの埋め込み設定では、過度な暴力・性的表現、反社会／憎悪表現、政治・宗教用途は禁止です。
   使用した素材の権利確認まで完了したという意味ではありません。
 - アイコン `App/Assets.xcassets/AppIcon.appiconset/AppIcon.png` の出所・権利は未確認です。
@@ -61,7 +64,6 @@ Irodori SDKは確認用revision `e316752e21bcba8b28532c5050ac3a4cc1b5d130` と�
 | --- | --- | --- |
 | [Irodori TTS GGUF](https://huggingface.co/sakasegawa/Irodori-TTS-v4.1-Small-MF-GGUF) | `9db7da1bec3d1069ef8e29732e0497be60c7b047` | 音声合成。Irodoriと日本語Semantic-DACVAE追加部分はMIT、Meta DACVAE由来部分はApache-2.0 |
 | [Core ML / AudioSeal](https://huggingface.co/AILogDev/Irodori-TTS-v4.1-Small-MF-CoreML) | 標準版 `b02a670f0cb41c382844672fa8f0f03b3b9b8082`。INT8版は可変タグ `v0.2.0-int8` | 部品別にMIT／Apache-2.0。現行speech.cpp経路はTTS重み全体ではなくAudioSeal関連ファイルを取得。透かしOFFでも取得対象 |
-| [ReazonSpeech NeMo v2 GGUF](https://huggingface.co/sakasegawa/reazonspeech-nemo-v2-GGUF) | `ed04d9ee2cd156414982a7c0f6123c6fd1093904` | Apache-2.0。SDKの音声認識用であり、現在のアプリのマイク認識では使用しない |
 | [LFM2.5-1.2B-JP GGUF](https://huggingface.co/LiquidAI/LFM2.5-1.2B-JP-GGUF) | `170ae1cecf0e74b0b25bd704047160fba9f613c6` | ローカル返答生成。[LFM Open License v1.0](LICENSES/LFM-Open-License-1.0.txt)。MIT／Apache-2.0ではない |
 
 - Irodori元モデル: `Aratako/Irodori-TTS-v4.1-Small-MF` revision
@@ -70,8 +72,6 @@ Irodori SDKは確認用revision `e316752e21bcba8b28532c5050ac3a4cc1b5d130` と�
 - Core ML関連の元モデル: `sbintuitions/modernbert-ja-310m` revision
   `77675fc96a7e445e982e2ba90246b816efc74ec6`、`facebook/audioseal` revision
   `3c19eba53390776cf2cc9ed5f6c9ac67ce72ecba`。
-- ReazonSpeech元モデル: `reazon-research/reazonspeech-nemo-v2` revision
-  `33693408be76b7cba9fd4a7546a0a8772430211b`。
 - LFMには年間売上 **1,000万米ドル** を基準とする商用利用制限があります。
   対象はアプリ単独の売上とは限りません。原文の `Legal Entity`、`Threshold`、第5条を確認し、
   必要ならLiquid AIとの別契約または別モデルを選択してください。
@@ -116,8 +116,7 @@ MITの著作権表示・許諾文、Apache-2.0の再配布・変更表示・NOTI
 ## 公開前チェック
 
 - [ ] llama同梱バイナリの生成commit・構成・追加依存・パッチを特定し、条文と照合する。
-- [ ] VRMKitの取り込みrevision・改変履歴とMToonソース／metallibの派生元・条件を確認する。
-- [ ] 旧Seed-sanの取得元・過去の改変・追加条件を確認する。
+- [ ] 残るVRMKitソースの取り込みrevision・改変履歴・条件を確認する（MToonシェーダー／metallibは除外済み）。
 - [ ] vrm_sampleの使用素材・権利を作者に確認する。商用等は別途許諾または別モデルを用意する。
 - [ ] アイコン等の作成者・取得経路・権利を確認し、許諾を記録するか差し替える。
 - [ ] 上流取り込み・改変履歴・変更表示を最終確認する。比較snapshotは取り込み履歴の確定ではない。
