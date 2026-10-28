@@ -227,6 +227,24 @@ public final class SpeechTTSManager {
 
 // MARK: - Audio
 
+private final class TurnAudioQueueBackend: SpeechPlaybackQueueBackend, @unchecked Sendable {
+    private let lock = NSLock()
+    private var callbacks: [(UUID, @Sendable (SpeechPlaybackEvent) -> Void)] = []
+    func enqueue(_ request: SpeechPlaybackRequest, streamID: UUID,
+                 onEvent: @escaping @Sendable (SpeechPlaybackEvent) -> Void) {
+        lock.lock(); callbacks.append((streamID, onEvent)); lock.unlock()
+    }
+    func stop(streamID: UUID) {
+        lock.lock(); callbacks.removeAll { $0.0 == streamID }; lock.unlock()
+    }
+    func finish(_ event: SpeechPlaybackEvent) {
+        lock.lock()
+        let callback = callbacks.isEmpty ? nil : callbacks.removeFirst().1
+        lock.unlock()
+        callback?(event)
+    }
+}
+
 @MainActor
 public final class AudioSpeechPlayer {
     public static let shared = AudioSpeechPlayer()
@@ -236,12 +254,13 @@ public final class AudioSpeechPlayer {
     public private(set) var isPlaying = false
 
     private struct PendingPlayback {
-        let id: UUID
         let onPlaybackStarted: @MainActor @Sendable () -> Void
-        let continuation: CheckedContinuation<Void, any Error>
     }
 
-    private var pending: PendingPlayback?
+    private var pending: [PendingPlayback] = []
+    private let backend = TurnAudioQueueBackend()
+    private lazy var session = SpeechPlaybackQueueSession(backend: backend)
+    private var streamID: UUID?
     private var requestWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     public init() {}
@@ -252,23 +271,33 @@ public final class AudioSpeechPlayer {
         pcm16: Data,
         onPlaybackStarted: @escaping @MainActor @Sendable () -> Void = {}
     ) async throws {
-        let id = UUID()
+        let id = beginQueue()
+        defer { endQueue(id) }
+        try await enqueue(pcm16: pcm16, streamID: id, onPlaybackStarted: onPlaybackStarted).wait()
+    }
+
+    public func beginQueue() -> UUID {
+        pending.removeAll()
+        let id = session.begin()
+        streamID = id
+        return id
+    }
+
+    public func enqueue(pcm16: Data, streamID: UUID,
+                        onPlaybackStarted: @escaping @MainActor @Sendable () -> Void = {}) throws -> SpeechPlaybackCompletion {
+        let completion = try session.enqueue(pcm16: pcm16, streamID: streamID, rate: 1, volume: 1)
         playCallCount += 1
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<Void, any Error>) in
-                pending = PendingPlayback(
-                    id: id,
-                    onPlaybackStarted: onPlaybackStarted,
-                    continuation: continuation
-                )
-                resumeRequestWaiters()
-            }
-        } onCancel: {
-            Task { @MainActor [weak self] in
-                self?.cancelPendingPlayback(matching: id)
-            }
-        }
+        pending.append(PendingPlayback(onPlaybackStarted: onPlaybackStarted))
+        resumeRequestWaiters()
+        return completion
+    }
+
+    public func endQueue(_ id: UUID) {
+        session.stop(streamID: id)
+        guard streamID == id else { return }
+        streamID = nil
+        pending.removeAll()
+        isPlaying = false
     }
 
     public func stop() {
@@ -287,29 +316,29 @@ public final class AudioSpeechPlayer {
     /// Returns the queued playback's start callback without completing it, so
     /// a test can replay a callback that belongs to an invalidated turn.
     public func pendingPlaybackStartedCallback() -> (@MainActor @Sendable () -> Void)? {
-        pending?.onPlaybackStarted
+        pending.first?.onPlaybackStarted
     }
 
     /// Emits the backend's actual playback-start event without finishing
     /// playback, so the test can observe the view model's reveal transition.
     public func signalPlaybackStarted() {
-        guard let pending else { return }
+        guard let pending = pending.first else { return }
         isPlaying = true
         pending.onPlaybackStarted()
     }
 
     public func finishPlayback() {
-        guard let pending else { return }
-        self.pending = nil
+        guard !pending.isEmpty else { return }
+        pending.removeFirst()
         isPlaying = false
-        pending.continuation.resume()
+        backend.finish(.finished)
     }
 
     public func failPlayback(_ error: any Error) {
-        guard let pending else { return }
-        self.pending = nil
+        guard !pending.isEmpty else { return }
+        pending.removeFirst()
         isPlaying = false
-        pending.continuation.resume(throwing: error)
+        backend.finish(.failed(error))
     }
 
     public func reset() {
@@ -324,10 +353,10 @@ public final class AudioSpeechPlayer {
         }
     }
 
-    private func cancelPendingPlayback(matching id: UUID? = nil) {
-        guard let pending, id == nil || pending.id == id else { return }
-        self.pending = nil
-        pending.continuation.resume(throwing: CancellationError())
+    private func cancelPendingPlayback() {
+        session.stop()
+        streamID = nil
+        pending.removeAll()
     }
 
     private func resumeRequestWaiters() {

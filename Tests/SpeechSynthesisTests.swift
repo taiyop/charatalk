@@ -232,7 +232,7 @@ struct SpeechSynthesisTests {
 
     // MARK: - Per sentence
 
-    static func testPerSentenceMatchesExistingSplit() throws {
+    static func testPerSentencePreservesContent() throws {
         let fixtures = [
             japaneseMultipleSentences,
             englishMultipleSentences,
@@ -253,7 +253,11 @@ struct SpeechSynthesisTests {
         for input in fixtures {
             let expected = SentenceSplitter.split(text: input)
             let actual = SentenceSplitter.chunks(text: input, mode: .perSentence)
-            try expectEqual("per-sentence matches split for \(label(for: input))", actual, expected)
+            // Coalescing adds only a separator; no original sentence or mark
+            // may be lost, reordered, duplicated or rewritten.
+            let compact: (String) -> String = { $0.filter { !$0.isWhitespace } }
+            try expectEqual("per-sentence preserves content for \(label(for: input))", compact(actual.joined()), compact(expected.joined()))
+            try expectTrue("coalescing cannot add chunks", actual.count <= expected.count)
         }
 
         let split = SentenceSplitter.split(text: japaneseMultipleSentences)
@@ -266,7 +270,7 @@ struct SpeechSynthesisTests {
 
     static func testPerSentenceKeepsExistingLongTextBehaviour() throws {
         let perSentence = SentenceSplitter.chunks(text: longResponse, mode: .perSentence)
-        try expectEqual("long per-sentence matches split", perSentence, SentenceSplitter.split(text: longResponse))
+        try expectTrue("short sentences reduce long-response chunk count", perSentence.count < SentenceSplitter.split(text: longResponse).count)
         try expectTrue("long per-sentence is split", perSentence.count > 1)
         try expectDoesNotContain("long per-sentence has no markdown fence", perSentence.joined(), "```")
 
@@ -282,6 +286,21 @@ struct SpeechSynthesisTests {
             SentenceSplitter.chunks(text: commaSeparated, mode: .wholeResponse),
             [commaSeparated]
         )
+    }
+
+    static func testShortSentenceCoalescingBounds() throws {
+        try expectEqual("pair short sentences", SentenceSplitter.chunks(text: "はい。元気です！", mode: .perSentence), ["はい。 元気です！"])
+        try expectEqual("at most two sentences per chunk", SentenceSplitter.chunks(text: "一。二。三。四。五。", mode: .perSentence), ["一。 二。", "三。 四。", "五。"])
+        let short = String(repeating: "あ", count: 22) + "。" // 23
+        let limit = String(repeating: "い", count: 23) + "。" // 24
+        let long = String(repeating: "う", count: 24) + "。" // 25
+        try expectEqual("48-character cap includes separator", SentenceSplitter.chunks(text: short + limit, mode: .perSentence), [short + " " + limit])
+        try expectEqual("49 characters are not combined", SentenceSplitter.chunks(text: limit + limit, mode: .perSentence), [limit, limit])
+        try expectEqual("long sentence stays separate on either side", SentenceSplitter.chunks(text: short + long + short, mode: .perSentence), [short, long, short])
+        try expectEqual("ellipsis fragment not absorbed", SentenceSplitter.chunks(text: "えっと…そうですね。", mode: .perSentence), ["えっと…", "そうですね。"])
+        try expectEqual("following ellipsis fragment not absorbed", SentenceSplitter.chunks(text: "はい。えっと…そうですね。", mode: .perSentence), ["はい。", "えっと…", "そうですね。"])
+        try expectEqual("newline word boundaries retained", SentenceSplitter.chunks(text: "Hi!\nHello!", mode: .perSentence), ["Hi! Hello!"])
+        try expectEqual("unsentenced fragment stays separate", SentenceSplitter.chunks(text: "見出し\n本文です。", mode: .perSentence), ["見出し", "本文です。"])
     }
 
     // MARK: - Mode metadata
@@ -345,7 +364,8 @@ struct SpeechSynthesisTests {
             ("wholeResponseReturnsEmptyForUnspeakableInput", testWholeResponseReturnsEmptyForUnspeakableInput),
             ("wholeResponseKeepsLongResponseIntact", testWholeResponseKeepsLongResponseIntact),
             ("wholeResponseKeepsSingleSentence", testWholeResponseKeepsSingleSentence),
-            ("perSentenceMatchesExistingSplit", testPerSentenceMatchesExistingSplit),
+            ("perSentencePreservesContent", testPerSentencePreservesContent),
+            ("shortSentenceCoalescingBounds", testShortSentenceCoalescingBounds),
             ("perSentenceKeepsExistingLongTextBehaviour", testPerSentenceKeepsExistingLongTextBehaviour),
             ("modeRawValuesRoundTrip", testModeRawValuesRoundTrip),
             ("modeIdentifiersAndLabels", testModeIdentifiersAndLabels)

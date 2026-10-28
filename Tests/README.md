@@ -372,9 +372,13 @@ Whole-response mode (`chunks(text:mode:)` with `.wholeResponse`):
 
 Per-sentence mode (`chunks(text:mode:)` with `.perSentence`):
 
-- output is identical to the existing `SentenceSplitter.split(text:)` for
-  Japanese, English, newline, Markdown, long, short, bold, comma-heavy, and
-  unspeakable fixtures
+- original content/order/punctuation is preserved for Japanese, English,
+  newline, Markdown, long, short, bold, comma-heavy, and unspeakable fixtures
+- adjacent short sentences (each <=24 characters) coalesce into at most two
+  sentences / 48 characters including a separating space; boundary cases,
+  ellipsis fragments, and long sentences remain separate
+- the low-level `SentenceSplitter.split(text:)` is unchanged; whole-response
+  mode bypasses coalescing
 - the existing 70-character fallback splitting behavior is retained
 
 Synthesis mode (`TTSSynthesisMode`):
@@ -403,7 +407,7 @@ or XCTest target is needed.
 (
 set -eu
 BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/speech-playback-tests.XXXXXX")"
-trap 'rm -f "$BIN_DIR/pcm-tests" "$BIN_DIR/pipeline-tests" "$BIN_DIR/session-tests" "$BIN_DIR/progress-tests"; rmdir "$BIN_DIR"' EXIT
+trap 'rm -f "$BIN_DIR/pcm-tests" "$BIN_DIR/pipeline-tests" "$BIN_DIR/session-tests" "$BIN_DIR/queue-tests" "$BIN_DIR/progress-tests"; rmdir "$BIN_DIR"' EXIT
 swiftc -swift-version 6 -warnings-as-errors \
   Sources/IrodoriTTS/SpeechPCM.swift Tests/SpeechPCMTests.swift \
   -o "$BIN_DIR/pcm-tests"
@@ -414,11 +418,16 @@ swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
   Sources/IrodoriTTS/SpeechPlaybackSession.swift Tests/SpeechPlaybackSessionTests.swift \
   -o "$BIN_DIR/session-tests"
 swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
+  Sources/IrodoriTTS/SpeechPlaybackSession.swift \
+  Sources/IrodoriTTS/SpeechPlaybackPipeline.swift Tests/SpeechPlaybackQueueTests.swift \
+  -o "$BIN_DIR/queue-tests"
+swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
   Sources/IrodoriTTS/SpeechPlaybackProgress.swift Tests/SpeechPlaybackProgressTests.swift \
   -o "$BIN_DIR/progress-tests"
 "$BIN_DIR/pcm-tests"
 "$BIN_DIR/pipeline-tests"
 "$BIN_DIR/session-tests"
+"$BIN_DIR/queue-tests"
 "$BIN_DIR/progress-tests"
 )
 ```
@@ -450,15 +459,31 @@ main-actor responsiveness while setup is pending, exact error propagation,
 cancellation before/during setup and playback, request replacement, duplicate or
 late completion callbacks, stale metering events, synchronous backend callbacks,
 and delayed old cancellation handlers that must not stop a newer request.
-The real AVAudioPlayer backend is typechecked by the iOS app build; audio quality,
-route changes, hardware start latency, and queue timing still require an iPhone.
-On device, confirm `audio_setup_on_main_thread` is `0` and compare
-`reply_to_first_audio`, `playback_buffer_wait`, `Audio prepare to play`, and
-`Audio player start` with the earlier logs.
+Queue-session/pipeline coverage: several buffers enqueue before the first
+finishes, first-chunk startup and two-chunk lookahead remain bounded, completion
+before wait is remembered, cross-buffer event order is preserved, duplicate and
+stale callbacks are ignored, failure/cancellation settles all queued waiters,
+old cancellation cannot stop a replacement stream, and scheduled audio stops
+before noncooperative native synthesis returns. Enqueued PCM is not retained
+again by the pipeline. The earlier single-request session API remains covered
+for compatibility.
+
+The real AVAudioEngine/AVAudioPlayerNode backend is typechecked by the iOS app
+build. Generated buffers are scheduled immediately on the same node, not from
+the preceding buffer's completion callback. Conversion and 20 ms RMS preparation
+stay on the audio worker; playback speed uses AVAudioUnitTimePitch. On device,
+confirm `audio_setup_on_main_thread` is `0`, `Audio engine setup` occurs once per
+response, and `audio_queued_buffers` stays <=3. Compare `reply_to_first_audio`,
+`playback_buffer_wait`, `PCM buffer preparation`, and `inter_chunk_gap`.
+Try speaker/Bluetooth, 0.8x/1x/1.5x rates, volume/mute, short and long replies,
+stop during synthesis/playback, rapid restart, interruptions and route changes.
+The engine reports failure if it stops unexpectedly; it does not auto-resume.
+Physical gaps, lip sync, voice quality and device memory still require an iPhone.
 Progress-fallback coverage includes premature stop vs natural completion,
 `currentTime` resetting at the end, 0.5x/2x playback rates, invalid clock/settings,
-and short audio that ends within one metering tick. Delegate failure verdicts
-take priority over the fallback in the AV backend.
+and short audio that ends within one metering tick. This is retained helper
+coverage; the new queued backend uses dataPlayedBack callbacks rather than
+AVAudioPlayer polling to determine completion.
 
 # Speech subtitle synchronization
 
@@ -501,12 +526,13 @@ Manual device checks (both `文ごと` and `全文まとめて`):
   the next turn's UI.
 - Missing model or synthesis/playback failure: the reply remains readable with
   an error, rather than staying hidden.
-- A two-sentence reply in per-sentence mode starts after the first synthesis,
-  without waiting for the second; slow synthesis may still cause a boundary gap.
+- Short sentences coalesce into bounded chunks; the first completed chunk starts
+  without waiting for the next chunk. Slow synthesis may still cause a gap.
 - Whole-response mode still performs one synthesis and waits for it to finish.
 
-The start event means the audio player accepted playback, not measured acoustic
-output. Bluetooth/output latency and voice quality still need real-device checks.
+The first start event means player.play() was accepted. Subsequent starts are
+observed at prequeued-buffer completion boundaries, not by enqueueing the next
+buffer. Neither measures acoustic output; Bluetooth latency needs device checks.
 
 # Conversation turn lifecycle
 
@@ -523,6 +549,7 @@ trap 'rm -f "$BIN_DIR/tests" "$BIN_DIR/libIrodoriTTS.dylib" "$BIN_DIR/IrodoriTTS
 swiftc -swift-version 6 -warnings-as-errors \
   -emit-module -emit-library -module-name IrodoriTTS \
   Sources/IrodoriTTS/SpeechPlaybackPipeline.swift \
+  Sources/IrodoriTTS/SpeechPlaybackSession.swift \
   Sources/IrodoriTTS/SpeechText.swift \
   -emit-module-path "$BIN_DIR/IrodoriTTS.swiftmodule" \
   -o "$BIN_DIR/libIrodoriTTS.dylib"
@@ -542,7 +569,10 @@ Add `-O` to both compiler invocations for optimized checks. Coverage includes
 late LLM replies/errors after stop, reset or mic activation; stale replies and
 audio callbacks during a newer turn; actual playback-start subtitle reveal
 independent of the public busy flag; and callbacks after natural completion.
-The test doubles replace App services only, not the view model's lifecycle logic.
+The test doubles replace App services only, not the view model's lifecycle logic
+or queue session. Multi-chunk cases also verify short-sentence grouping, PCM
+prequeue before the first chunk finishes, bounded lookahead, status transitions,
+and stop discarding every queued chunk.
 
 # VRM update pacing and conversation diagnostics
 
@@ -594,10 +624,12 @@ Hitches and Points of Interest to correlate UI hitches with synthesis.
 | `playback_buffer_wait` | Waiting at a later sentence boundary for unfinished lookahead; excludes the first chunk |
 | `Audio worker queue wait` / `Audio playback setup` | Playback queue delay / preparation cost |
 | `audio_setup_on_main_thread` | Should be `0`, indicating preparation off the main thread |
-| `inter_chunk_gap` | Previous completion observed by the backend to next accepted playback; excludes silence inside PCM |
+| `inter_chunk_gap` | Previous dataPlayedBack completion to observed next buffer start (or late enqueue/play); excludes silence inside PCM |
+| `audio_queued_buffers` | Scheduled/in-flight audio buffers; at most 3 with the pipeline's two-chunk lookahead |
 
-Times are milliseconds. Playback acceptance is not a measurement of physical
-speaker/Bluetooth output. Completion observations have timer and queue latency.
+Times are milliseconds. Playback start observations do not measure physical
+speaker/Bluetooth output. Completion observations have native/queue latency;
+prequeued transitions may report near-zero gaps without proving acoustic continuity.
 If gaps coincide with `playback_buffer_wait`, synthesis is falling behind; if
 not, inspect setup, PCM silence and output routing. GPU contention and audible
 quality still need real-device verification; helper tests alone cannot prove a fix.

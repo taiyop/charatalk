@@ -2,39 +2,48 @@ import Foundation
 import AVFoundation
 import IrodoriTTS
 
-/// Only observable UI state lives on the main actor. All AVAudioPlayer work,
-/// including metering, stop and destruction, belongs to the backend's queue.
+/// UI state is main-actor isolated; the engine, PCM conversion and scheduling
+/// are confined to the audio worker. One engine/player is used per response.
 @MainActor
 public final class AudioSpeechPlayer: ObservableObject {
     public static let shared = AudioSpeechPlayer()
-
     @Published public private(set) var isPlaying = false
     @Published public private(set) var currentMouthOpen: Float = 0
 
-    private let session: SpeechPlaybackSession
+    private let session = SpeechPlaybackQueueSession(backend: QueuedAudioPlaybackBackend())
+    private var streamID: UUID?
+    private var audibleID: UUID?
     private var smoothedVolume: Float = 0
 
-    private init() {
-        session = SpeechPlaybackSession(backend: QueuedAudioPlaybackBackend())
+    private init() {}
+
+    public func beginQueue() -> UUID {
+        stop()
+        let id = session.begin()
+        streamID = id
+        return id
     }
 
-    /// Suspends until playback finishes. Stopping/replacing this request throws
-    /// CancellationError; stale backend callbacks cannot complete a newer request.
-    public func play(
-        pcm16: Data,
+    /// Returns immediately after handing PCM to the worker, not after playback.
+    /// The completion carries no PCM and can be awaited at the playback boundary.
+    public func enqueue(
+        pcm16: Data, streamID: UUID,
         onPlaybackStarted: @escaping @MainActor @Sendable () -> Void = {}
-    ) async throws {
-        let rate = max(0.5, min(2, Float(AppSettings.shared.speechRate)))
-        let volume = max(0, min(1, Float(AppSettings.shared.speechVolume)))
-        try await session.play(pcm16: pcm16, rate: rate, volume: volume) { [weak self] event in
-            guard let self else { return }
+    ) throws -> SpeechPlaybackCompletion {
+        let audibleID = UUID()
+        return try session.enqueue(
+            pcm16: pcm16, streamID: streamID,
+            rate: max(0.5, min(2, Float(AppSettings.shared.speechRate))),
+            volume: max(0, min(1, Float(AppSettings.shared.speechVolume)))
+        ) { [weak self] event in
+            guard let self, self.streamID == streamID else { return }
             switch event {
             case .started:
-                self.smoothedVolume = 0
-                self.currentMouthOpen = 0
+                self.audibleID = audibleID
                 self.isPlaying = true
                 onPlaybackStarted()
             case .meter(let normalized):
+                guard self.audibleID == audibleID else { return }
                 let boost = Float(AppSettings.shared.lipSyncBoost)
                 let target = min(normalized * (boost / 6), 1)
                 let next = self.smoothedVolume * 0.5 + target * 0.5
@@ -45,37 +54,49 @@ public final class AudioSpeechPlayer: ObservableObject {
                     self.currentMouthOpen = quantized
                 }
             case .finished, .stopped, .failed:
-                self.resetState()
+                if self.audibleID == audibleID { self.resetState() }
             }
         }
     }
 
+    public func endQueue(_ id: UUID) {
+        session.stop(streamID: id)
+        guard streamID == id else { return }
+        streamID = nil
+        resetState()
+    }
+
+    public func play(
+        pcm16: Data,
+        onPlaybackStarted: @escaping @MainActor @Sendable () -> Void = {}
+    ) async throws {
+        let id = beginQueue()
+        defer { endQueue(id) }
+        try await enqueue(pcm16: pcm16, streamID: id, onPlaybackStarted: onPlaybackStarted).wait()
+    }
+
     public func stop() {
         session.stop()
+        streamID = nil
         resetState()
     }
 
     private func resetState() {
+        audibleID = nil
         if isPlaying { isPlaying = false }
         if currentMouthOpen != 0 { currentMouthOpen = 0 }
         smoothedVolume = 0
     }
 }
 
-/// GCD does not inherit task-local values. Capture only safe diagnostic metadata
-/// at enqueue time and explicitly restore it on the audio queue.
+/// GCD does not inherit task-local diagnostics. Never capture text/credentials.
 private struct AudioPlaybackContext: Sendable {
     let performance = ConversationPerformance.current
     let chunk = ConversationPerformance.chunkIndex
-    let previousFinishedAt = ConversationPerformance.previousPlaybackFinishedAt
 
     func withValue<T>(_ body: () throws -> T) rethrows -> T {
         try ConversationPerformance.$current.withValue(performance) {
-            try ConversationPerformance.$chunkIndex.withValue(chunk) {
-                try ConversationPerformance.$previousPlaybackFinishedAt.withValue(previousFinishedAt) {
-                    try body()
-                }
-            }
+            try ConversationPerformance.$chunkIndex.withValue(chunk, operation: body)
         }
     }
 }
@@ -83,13 +104,11 @@ private struct AudioPlaybackContext: Sendable {
 private final class AudioPlaybackCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
-
     func cancel() {
         lock.lock()
         cancelled = true
         lock.unlock()
     }
-
     func check() throws {
         lock.lock()
         let value = cancelled
@@ -98,89 +117,60 @@ private final class AudioPlaybackCancellation: @unchecked Sendable {
     }
 }
 
-/// The delegate never transports an AVAudioPlayer across executors, only the
-/// request ID captured by its callbacks and a monotonic completion timestamp.
-private final class AudioPlaybackDelegate: NSObject, AVAudioPlayerDelegate, @unchecked Sendable {
-    let completed: @Sendable (Bool, TimeInterval) -> Void
-    let failed: @Sendable (any Error, TimeInterval) -> Void
-    private let lock = NSLock()
-    private var terminal: (event: SpeechPlaybackEvent, time: TimeInterval)?
-
-    init(completed: @escaping @Sendable (Bool, TimeInterval) -> Void,
-         failed: @escaping @Sendable (any Error, TimeInterval) -> Void) {
-        self.completed = completed
-        self.failed = failed
-    }
-
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        let time = ProcessInfo.processInfo.systemUptime
-        record(flag ? .finished : .failed(IrodoriError.invalid("音声の再生が中断されました。")), at: time)
-        completed(flag, time)
-    }
-
-    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: (any Error)?) {
-        let time = ProcessInfo.processInfo.systemUptime
-        let error = error ?? IrodoriError.invalid("音声のデコードに失敗しました。")
-        record(.failed(error), at: time)
-        failed(error, time)
-    }
-
-    // Record the verdict before dispatching it: the polling timer may already
-    // be queued ahead of the delegate's notification on the audio queue.
-    private func record(_ event: SpeechPlaybackEvent, at time: TimeInterval) {
-        lock.lock()
-        defer { lock.unlock() }
-        if let terminal, case .failed = terminal.event { return }
-        if terminal == nil { terminal = (event, time) }
-        else if case .failed = event { terminal = (event, time) }
-    }
-
-    func terminalResult() -> (event: SpeechPlaybackEvent, time: TimeInterval)? {
-        lock.lock()
-        defer { lock.unlock() }
-        return terminal
-    }
-}
-
-/// AVFoundation objects and mutable playback state are queue-confined. The only
-/// cross-queue mutable state is the cancellation registry, guarded by a lock;
-/// cancelling while prepareToPlay/play blocks never waits on that audio work.
-private final class QueuedAudioPlaybackBackend: SpeechPlaybackBackend, @unchecked Sendable {
-    private final class ActivePlayback {
+/// Buffers are scheduled on the same AVAudioPlayerNode as soon as synthesis
+/// completes, BEFORE the preceding buffer finishes. dataPlayedBack is used only
+/// for ownership/completion; it is not used to schedule the next buffer.
+private final class QueuedAudioPlaybackBackend: SpeechPlaybackQueueBackend, @unchecked Sendable {
+    private final class Segment {
         let id: UUID
-        var player: AVAudioPlayer?
-        let delegate: AudioPlaybackDelegate
-        let callback: @Sendable (SpeechPlaybackEvent) -> Void
+        let buffer: AVAudioPCMBuffer
+        let levels: [Float]
+        let startFrame: AVAudioFramePosition
         let context: AudioPlaybackContext
-        let interval: ConversationPerformance.Interval?
-        let startedAt: TimeInterval
-        var progress: SpeechPlaybackProgress
+        let callback: @Sendable (SpeechPlaybackEvent) -> Void
+        var started = false
+        var interval: ConversationPerformance.Interval?
+        var endFrame: AVAudioFramePosition { startFrame + Int64(buffer.frameLength) }
 
-        init(id: UUID, player: AVAudioPlayer, delegate: AudioPlaybackDelegate,
-             callback: @escaping @Sendable (SpeechPlaybackEvent) -> Void,
-             context: AudioPlaybackContext, interval: ConversationPerformance.Interval?) {
+        init(id: UUID, buffer: AVAudioPCMBuffer, levels: [Float], startFrame: AVAudioFramePosition,
+             context: AudioPlaybackContext, callback: @escaping @Sendable (SpeechPlaybackEvent) -> Void) {
             self.id = id
-            self.player = player
-            self.delegate = delegate
-            self.callback = callback
+            self.buffer = buffer
+            self.levels = levels
+            self.startFrame = startFrame
             self.context = context
-            self.interval = interval
-            self.startedAt = ProcessInfo.processInfo.systemUptime
-            self.progress = SpeechPlaybackProgress(duration: player.duration, rate: player.rate)
+            self.callback = callback
+        }
+    }
+
+    private final class Stream {
+        let id: UUID
+        let engine = AVAudioEngine()
+        let player = AVAudioPlayerNode()
+        let pitch = AVAudioUnitTimePitch()
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+        var segments: [Segment] = []
+        var timer: DispatchSourceTimer?
+        var lastFinishedAt: TimeInterval?
+
+        init(id: UUID) { self.id = id }
+
+        var currentFrame: AVAudioFramePosition {
+            guard let time = player.lastRenderTime, let time = player.playerTime(forNodeTime: time) else { return 0 }
+            return time.sampleTime
         }
     }
 
     private let queue = DispatchQueue(label: "CharaTalk.audioPlayback", qos: .userInitiated)
     private let registryLock = NSLock()
     private var cancellations: [UUID: AudioPlaybackCancellation] = [:]
-    // Accessed only on queue, including AVAudioPlayer's final release.
-    private var active: ActivePlayback?
-    private var meterTimer: DispatchSourceTimer?
-    private var lastCompletion: (turnID: String, time: TimeInterval)?
+    // All AVFoundation objects, including their final release, stay on queue.
+    private var active: Stream?
 
     init() {
         queue.async {
-            // Preserve the existing migration cleanup, but never do disk I/O on UI startup.
+            // Keep the migration cleanup for files from the former WAV-based
+            // player, without doing disk I/O on the main actor.
             let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
             let directory = support.appendingPathComponent("Playback", isDirectory: true)
             if let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
@@ -191,178 +181,187 @@ private final class QueuedAudioPlaybackBackend: SpeechPlaybackBackend, @unchecke
         }
     }
 
-    func start(_ request: SpeechPlaybackRequest,
-               onEvent: @escaping @Sendable (SpeechPlaybackEvent) -> Void) {
-        let enqueueInterval = ConversationPerformance.begin("Audio enqueue")
-        defer { ConversationPerformance.end("Audio enqueue", enqueueInterval, outcome: .completed) }
+    func enqueue(_ request: SpeechPlaybackRequest, streamID: UUID,
+                 onEvent: @escaping @Sendable (SpeechPlaybackEvent) -> Void) {
         let context = AudioPlaybackContext()
-        let cancellation = AudioPlaybackCancellation()
         registryLock.lock()
-        cancellations[request.id] = cancellation
+        let cancellation = cancellations[streamID] ?? AudioPlaybackCancellation()
+        cancellations[streamID] = cancellation
         registryLock.unlock()
-        let queueInterval = ConversationPerformance.begin("Audio worker queue wait")
+        let interval = ConversationPerformance.begin("Audio worker queue wait")
         queue.async { [self] in
             context.withValue {
-                ConversationPerformance.end("Audio worker queue wait", queueInterval, outcome: .completed)
-                startOnQueue(request, cancellation: cancellation, context: context, onEvent: onEvent)
+                ConversationPerformance.end("Audio worker queue wait", interval, outcome: .completed)
+                enqueueOnQueue(request, streamID: streamID, cancellation: cancellation, context: context, onEvent: onEvent)
             }
         }
     }
 
-    func stop(id: UUID) {
+    func stop(streamID: UUID) {
         registryLock.lock()
-        let cancellation = cancellations[id]
+        let cancellation = cancellations.removeValue(forKey: streamID)
         registryLock.unlock()
         cancellation?.cancel()
         queue.async { [self] in
-            finish(id: id, event: .stopped, at: ProcessInfo.processInfo.systemUptime)
+            guard active?.id == streamID else { return }
+            terminate(event: .stopped)
         }
     }
 
-    private func unregister(_ id: UUID) {
-        registryLock.lock()
-        cancellations.removeValue(forKey: id)
-        registryLock.unlock()
-    }
-
-    private func startOnQueue(_ request: SpeechPlaybackRequest,
-                              cancellation: AudioPlaybackCancellation,
-                              context: AudioPlaybackContext,
-                              onEvent: @escaping @Sendable (SpeechPlaybackEvent) -> Void) {
-        let setupInterval = ConversationPerformance.begin("Audio playback setup")
+    private func enqueueOnQueue(_ request: SpeechPlaybackRequest, streamID: UUID,
+                                cancellation: AudioPlaybackCancellation, context: AudioPlaybackContext,
+                                onEvent: @escaping @Sendable (SpeechPlaybackEvent) -> Void) {
+        let interval = ConversationPerformance.begin("Audio playback setup")
         var outcome = ConversationPerformance.Outcome.failed
-        defer { ConversationPerformance.end("Audio playback setup", setupInterval, outcome: outcome) }
-        var preparingPlayer: AVAudioPlayer?
+        defer { ConversationPerformance.end("Audio playback setup", interval, outcome: outcome) }
         do {
             try cancellation.check()
-            if let active { finish(id: active.id, event: .stopped, at: ProcessInfo.processInfo.systemUptime) }
             context.performance?.value("audio_setup_on_main_thread", value: Thread.isMainThread ? 1 : 0, chunk: context.chunk)
-            #if os(iOS)
-            try ConversationPerformance.measure("Audio session setup") {
-                let session = AVAudioSession.sharedInstance()
-                if session.category != .playback && session.category != .playAndRecord {
-                    try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            guard !request.pcm16.isEmpty, request.pcm16.count.isMultiple(of: 2),
+                  request.pcm16.count / 2 <= Int(UInt32.max) else {
+                throw IrodoriError.invalid("音声のPCMデータが不正です。")
+            }
+            let stream: Stream
+            if let current = active, current.id == streamID {
+                stream = current
+            } else {
+                if active != nil { terminate(event: .stopped) }
+                stream = Stream(id: streamID)
+                active = stream
+                try ConversationPerformance.measure("Audio engine setup") {
+                    #if os(iOS)
+                    let session = AVAudioSession.sharedInstance()
+                    if session.category != .playback && session.category != .playAndRecord {
+                        try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+                    }
                     try session.setActive(true)
-                } else if session.category == .playback && session.mode != .spokenAudio {
-                    try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-                    try session.setActive(true)
+                    #endif
+                    stream.engine.attach(stream.player)
+                    stream.engine.attach(stream.pitch)
+                    stream.engine.connect(stream.player, to: stream.pitch, format: stream.format)
+                    stream.engine.connect(stream.pitch, to: stream.engine.mainMixerNode, format: stream.format)
+                    stream.pitch.rate = request.rate
+                    stream.player.volume = request.volume
+                    stream.engine.prepare()
+                    try stream.engine.start()
                 }
+                startMetering(stream)
             }
-            #endif
             try cancellation.check()
-            let wav = try ConversationPerformance.measure("WAV preparation") {
-                try ReferenceAudio.wavData(pcm16: request.pcm16)
+            // Response settings are snapshotted at the first buffer; do not
+            // change rate/volume of audio already queued by a later enqueue.
+            let (buffer, levels) = try ConversationPerformance.measure("PCM buffer preparation") {
+                try makeBuffer(request.pcm16, format: stream.format)
             }
-            let player = try ConversationPerformance.measure("Audio player creation") {
-                try AVAudioPlayer(data: wav, fileTypeHint: AVFileType.wav.rawValue)
-            }
-            preparingPlayer = player
-            let id = request.id
-            let delegate = AudioPlaybackDelegate(completed: { [weak self] success, time in
+            try cancellation.check()
+            let startFrame = max(stream.segments.last?.endFrame ?? 0, stream.currentFrame)
+            let segment = Segment(id: request.id, buffer: buffer, levels: levels, startFrame: startFrame,
+                                  context: context, callback: onEvent)
+            stream.segments.append(segment)
+            context.performance?.value("audio_queued_buffers", value: Double(stream.segments.count), chunk: context.chunk)
+            let segmentID = request.id
+            stream.player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
                 guard let self else { return }
-                self.queue.async { [self] in
-                    let event: SpeechPlaybackEvent = success ? .finished : .failed(IrodoriError.invalid("音声の再生が中断されました。"))
-                    finish(id: id, event: event, at: time)
-                }
-            }, failed: { [weak self] error, time in
-                guard let self else { return }
-                self.queue.async { [self] in finish(id: id, event: .failed(error), at: time) }
-            })
-            player.delegate = delegate
-            player.isMeteringEnabled = true
-            player.enableRate = true
-            player.rate = request.rate
-            player.volume = request.volume
-            let prepared = ConversationPerformance.measure("Audio prepare to play") { player.prepareToPlay() }
-            guard prepared else { throw IrodoriError.invalid("音声の再生準備に失敗しました。") }
-            try cancellation.check()
-            let accepted = ConversationPerformance.measure("Audio player start") { player.play() }
-            guard accepted else { throw IrodoriError.invalid("音声の再生開始に失敗しました。") }
-            try cancellation.check()
-
-            active = ActivePlayback(id: id, player: player, delegate: delegate, callback: onEvent,
-                                    context: context, interval: ConversationPerformance.begin("Audio playback"))
-            preparingPlayer = nil
-            // Use the backend-observed finish time, not the later MainActor
-            // continuation, so UI backpressure is included in inter-chunk gaps.
-            let previous = lastCompletion.flatMap { completion in
-                completion.turnID == context.performance?.id && context.chunk > 0 ? completion.time : nil
+                self.queue.async { [self] in complete(id: segmentID, streamID: streamID) }
             }
-            ConversationPerformance.$previousPlaybackFinishedAt.withValue(previous ?? context.previousFinishedAt) {
-                context.performance?.audioStarted()
-            }
-            context.performance?.duration("expected_playback", seconds: player.duration / Double(player.rate), chunk: context.chunk)
-            onEvent(.started)
-            startMetering(id: id)
+            if !stream.player.isPlaying { stream.player.play() }
+            try cancellation.check()
+            if stream.segments.count == 1 { started(segment, in: stream) }
+            context.performance?.duration("expected_playback", seconds: Double(buffer.frameLength) / 48_000 / Double(stream.pitch.rate), chunk: context.chunk)
             outcome = .completed
         } catch {
-            preparingPlayer?.delegate = nil
-            ConversationPerformance.measure("Audio player stop") { preparingPlayer?.stop() }
-            ConversationPerformance.measure("Audio player release") { preparingPlayer = nil }
-            unregister(request.id)
-            outcome = ConversationPerformance.outcome(for: error)
+            // Stop all buffers on this stream, but never a replacement stream.
+            if active?.id == streamID { terminate(event: error is CancellationError ? .stopped : .failed(error)) }
             onEvent(error is CancellationError ? .stopped : .failed(error))
+            outcome = ConversationPerformance.outcome(for: error)
         }
     }
 
-    private func startMetering(id: UUID) {
-        meterTimer?.cancel()
+    private func makeBuffer(_ pcm: Data, format: AVAudioFormat) throws -> (AVAudioPCMBuffer, [Float]) {
+        let count = pcm.count / 2
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)),
+              let samples = buffer.floatChannelData?[0] else { throw IrodoriError.invalid("音声バッファを確保できませんでした。") }
+        buffer.frameLength = AVAudioFrameCount(count)
+        var levels: [Float] = []
+        // RMS every 20 ms, computed off the real-time audio thread. Metering
+        // follows the player sample clock, including time-pitch rate changes.
+        pcm.withUnsafeBytes { bytes in
+            for begin in stride(from: 0, to: count, by: 960) {
+                let end = min(begin + 960, count)
+                var energy: Float = 0
+                for index in begin..<end {
+                    let value = Float(Int16(littleEndian: bytes.loadUnaligned(fromByteOffset: index * 2, as: Int16.self))) / 32_768
+                    samples[index] = value
+                    energy += value * value
+                }
+                let db = 10 * log10(max(energy / Float(end - begin), 1e-12))
+                levels.append(max(0, min(1, (db + 45) / 45)))
+            }
+        }
+        return (buffer, levels)
+    }
+
+    private func started(_ segment: Segment, in stream: Stream) {
+        guard !segment.started else { return }
+        segment.started = true
+        segment.context.withValue {
+            segment.interval = ConversationPerformance.begin("Audio playback")
+            ConversationPerformance.$previousPlaybackFinishedAt.withValue(stream.lastFinishedAt) {
+                segment.context.performance?.audioStarted()
+            }
+        }
+        segment.callback(.started)
+    }
+
+    private func complete(id: UUID, streamID: UUID) {
+        guard let stream = active, stream.id == streamID,
+              let segment = stream.segments.first, segment.id == id else { return }
+        started(segment, in: stream)
+        stream.segments.removeFirst()
+        stream.lastFinishedAt = ProcessInfo.processInfo.systemUptime
+        segment.context.withValue { ConversationPerformance.end("Audio playback", segment.interval, outcome: .completed) }
+        segment.callback(.finished)
+        if let next = stream.segments.first { started(next, in: stream) }
+    }
+
+    private func startMetering(_ stream: Stream) {
         let timer = DispatchSource.makeTimerSource(queue: queue)
+        let id = stream.id
         timer.schedule(deadline: .now() + .milliseconds(25), repeating: .milliseconds(25), leeway: .milliseconds(3))
         timer.setEventHandler { [weak self] in
-            guard let self, let active = self.active, active.id == id, let player = active.player else { return }
-            if let terminal = active.delegate.terminalResult() {
-                self.finish(id: id, event: terminal.event, at: terminal.time)
+            guard let self, let stream = self.active, stream.id == id else { return }
+            guard stream.engine.isRunning, stream.segments.isEmpty || stream.player.isPlaying else {
+                self.terminate(event: .failed(IrodoriError.invalid("音声エンジンが停止しました。もう一度再生してください。")))
                 return
             }
-            active.progress.observe(currentTime: player.currentTime)
-            // GCD workers do not provide a RunLoop. Completion must not depend
-            // on delegate delivery there; this timer is also a bounded fallback.
-            guard player.isPlaying else {
-                let now = ProcessInfo.processInfo.systemUptime
-                let event: SpeechPlaybackEvent = active.progress.reachedEnd(elapsed: now - active.startedAt)
-                    ? .finished : .failed(IrodoriError.invalid("音声の再生が途中で停止しました。"))
-                self.finish(id: id, event: event, at: now)
-                return
-            }
-            player.updateMeters()
-            let normalized = max(0, min(1, (player.averagePower(forChannel: 0) + 45) / 45))
-            active.callback(.meter(normalized))
+            let frame = stream.currentFrame
+            guard let segment = stream.segments.first(where: { frame >= $0.startFrame && frame < $0.endFrame }) else { return }
+            let block = Int(max(0, frame - segment.startFrame)) / 960
+            if block < segment.levels.count { segment.callback(.meter(segment.levels[block])) }
         }
-        meterTimer = timer
+        stream.timer = timer
         timer.resume()
     }
 
-    private func finish(id: UUID, event: SpeechPlaybackEvent, at time: TimeInterval) {
-        guard let ending = active, ending.id == id else { return }
-        var event = event
-        var time = time
-        if case .finished = event, let terminal = ending.delegate.terminalResult() {
-            event = terminal.event
-            time = terminal.time
-        }
-        active = nil
-        meterTimer?.cancel()
-        meterTimer = nil
-        unregister(id)
-        ending.context.withValue {
-            let outcome: ConversationPerformance.Outcome
-            switch event {
-            case .finished:
-                outcome = .completed
-                if let turnID = ending.context.performance?.id { lastCompletion = (turnID, time) }
-            case .stopped:
-                outcome = .cancelled
-                lastCompletion = nil
-            default:
-                outcome = .failed
-                lastCompletion = nil
+    private func terminate(event: SpeechPlaybackEvent) {
+        guard let stream = active else { return }
+        active = nil // Ignore callbacks caused by stop() itself.
+        stream.timer?.cancel()
+        stream.timer = nil
+        stream.player.stop()
+        stream.engine.stop()
+        for segment in stream.segments {
+            segment.context.withValue {
+                let outcome: ConversationPerformance.Outcome
+                if case .failed = event { outcome = .failed } else { outcome = .cancelled }
+                ConversationPerformance.end("Audio playback", segment.interval, outcome: outcome)
             }
-            ConversationPerformance.end("Audio playback", ending.interval, outcome: outcome)
-            ending.player?.delegate = nil
-            ConversationPerformance.measure("Audio player stop") { ending.player?.stop() }
-            ConversationPerformance.measure("Audio player release") { ending.player = nil }
-            ending.callback(event)
+            segment.callback(event)
         }
+        stream.segments.removeAll()
+        registryLock.lock()
+        let cancellation = cancellations.removeValue(forKey: stream.id)
+        registryLock.unlock()
+        cancellation?.cancel()
     }
 }

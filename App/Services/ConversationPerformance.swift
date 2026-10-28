@@ -103,8 +103,8 @@ struct ConversationPerformance: Sendable {
         signposter.emitEvent(name, "turn=\(trace.id, privacy: .public) chunk=\(chunkIndex)")
     }
 
-    /// `AVAudioPlayer.play()` was accepted. This is an application-side start
-    /// timestamp, not a measurement of acoustic output or Bluetooth latency.
+    /// First node.play() acceptance, or an observed transition to the next
+    /// prequeued buffer. This is not measured acoustic/Bluetooth output timing.
     func audioStarted() {
         let now = ProcessInfo.processInfo.systemUptime
         let chunk = Self.chunkIndex

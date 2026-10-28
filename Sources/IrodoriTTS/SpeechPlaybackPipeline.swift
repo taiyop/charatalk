@@ -21,7 +21,12 @@ import Foundation
 ///   - onEvent: Optional synchronous observer for timing milestones. Called on
 ///     the main actor in emission order, before the pipeline continues.
 ///   - synthesize: Synthesizes one chunk. Called serially.
-///   - play: Plays one chunk and its index. Called serially in input order.
+///   - enqueue: Optional fast handoff of finished PCM to a shared audio queue.
+///     Called immediately after synthesis, before earlier playback completes.
+///   - stopPlayback: Stops that queue on error/cancellation. Must be identity
+///     scoped so a delayed cancellation cannot stop a replacement response.
+///   - play: Plays one chunk, or awaits its queued completion when enqueue is
+///     supplied (in that case Data is empty). Called serially in input order.
 /// - Throws: The first synthesis or playback error. Cancellation of the
 ///   current task is propagated to outstanding synthesis tasks and reported
 ///   as `CancellationError`.
@@ -55,6 +60,11 @@ public enum SpeechPlaybackPipeline {
         chunks: [String],
         onEvent: (@MainActor @Sendable (Event) -> Void)? = nil,
         synthesize: @escaping @MainActor (String) async throws -> Data,
+        // When supplied, submit PCM immediately after synthesis, while earlier
+        // audio is still playing. `play` must then await that queued chunk's
+        // completion (its Data argument is empty). Keep the same bounded window.
+        enqueue: (@MainActor (Data, Int) throws -> Void)? = nil,
+        stopPlayback: (@MainActor @Sendable () -> Void)? = nil,
         play: @escaping @MainActor (Data, Int) async throws -> Void
     ) async throws {
         guard !chunks.isEmpty else { return }
@@ -91,11 +101,15 @@ public enum SpeechPlaybackPipeline {
                     try Task.checkCancellation()
                     let elapsed = ProcessInfo.processInfo.systemUptime - synthesisStart
                     onEvent?(.synthesisCompleted(index: index, elapsed: elapsed))
+                    try enqueue?(data, index)
+                    // The backend now owns the PCM; don't retain another copy
+                    // in completed tasks or the readiness buffer.
+                    let prepared = enqueue == nil ? data : Data()
                     // Publish the finished chunk immediately so the playback
                     // boundary can consume it without an extra readiness wait.
-                    ready.store(data, at: index)
+                    ready.store(prepared, at: index)
                     store.remove(at: index)
-                    return data
+                    return prepared
                 }
                 store.add(task, at: index)
                 lastScheduled = index
@@ -179,8 +193,15 @@ public enum SpeechPlaybackPipeline {
         }
 
         do {
-            try await run()
+            try await withTaskCancellationHandler {
+                try await run()
+            } onCancel: {
+                // Stop scheduled audio even if native synthesis takes time to
+                // acknowledge cancellation. The owner checks the stream ID.
+                Task { @MainActor in stopPlayback?() }
+            }
         } catch {
+            stopPlayback?()
             store.cancelAll()
             // Nothing in the buffer will play after a failure or
             // cancellation. Release that PCM before a slow native synthesis

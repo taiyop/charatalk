@@ -252,7 +252,8 @@ public final class ConversationViewModel: ObservableObject {
         }
     }
     
-    /// 文ごとは最初の1文ができたら再生し、続く文を最大2文先読みする。
+    /// 文ごとは短文を適度にまとめ、最初のチャンクから同じプレーヤーへ
+    /// 順次予約する。続くチャンクは最大2個先読みする。
     /// 全文モードは1回の合成・再生で読み上げる。
     private func speakResponse(_ text: String, messageID: UUID, turnID: UUID) async {
         // 音声なし・合成失敗・キャンセルでも返答の本文は確認できるようにする。
@@ -318,7 +319,9 @@ public final class ConversationViewModel: ObservableObject {
         // Pipeline synthesis is strictly serial and ordered. Keep this counter
         // aligned with its chunk indices for TTS-internal diagnostic context.
         var preparedCount = 0
-        var previousPlaybackFinishedAt: TimeInterval?
+        let playbackStream = audioPlayer.beginQueue()
+        defer { audioPlayer.endQueue(playbackStream) }
+        var playbackCompletions: [Int: SpeechPlaybackCompletion] = [:]
         statusMessage = total > 1 ? "音声を準備しています… (1/\(total))" : "音声を準備しています…"
         do {
             try await SpeechPlaybackPipeline.play(chunks: chunks, onEvent: { event in
@@ -337,7 +340,6 @@ public final class ConversationViewModel: ObservableObject {
                         ConversationPerformance.event("Speech playback requested")
                     }
                 case .playbackCompleted(let index, let elapsed):
-                    previousPlaybackFinishedAt = ProcessInfo.processInfo.systemUptime
                     performance.duration("chunk_playback", seconds: elapsed, chunk: index)
                 }
             }) { chunk in
@@ -360,15 +362,20 @@ public final class ConversationViewModel: ObservableObject {
                     if error is CancellationError || Task.isCancelled { throw CancellationError() }
                     throw IrodoriError.invalid("音声合成エラー: \(error.localizedDescription)")
                 }
-            } play: { pcmData, index in
-                do {
-                    try await ConversationPerformance.$chunkIndex.withValue(index) {
-                        try await ConversationPerformance.$previousPlaybackFinishedAt.withValue(previousPlaybackFinishedAt) {
-                            try await self.audioPlayer.play(pcm16: pcmData) {
-                                self.speechPlaybackStarted(messageID: messageID, turnID: turnID, index: index, total: total)
-                            }
-                        }
+            } enqueue: { pcmData, index in
+                playbackCompletions[index] = try ConversationPerformance.$chunkIndex.withValue(index) {
+                    try self.audioPlayer.enqueue(pcm16: pcmData, streamID: playbackStream) {
+                        self.speechPlaybackStarted(messageID: messageID, turnID: turnID, index: index, total: total)
                     }
+                }
+            } stopPlayback: {
+                self.audioPlayer.endQueue(playbackStream)
+            } play: { _, index in
+                do {
+                    guard let completion = playbackCompletions.removeValue(forKey: index) else {
+                        throw IrodoriError.invalid("音声の再生予約が見つかりません。")
+                    }
+                    try await completion.wait()
                 } catch {
                     if error is CancellationError || Task.isCancelled { throw CancellationError() }
                     throw IrodoriError.invalid("音声再生エラー: \(error.localizedDescription)")

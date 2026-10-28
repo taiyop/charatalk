@@ -8,11 +8,37 @@ public struct SentenceSplitter {
     public static func chunks(text: String, mode: TTSSynthesisMode) -> [String] {
         switch mode {
         case .perSentence:
-            return split(text: text)
+            return coalescingShortSentences(split(text: text))
         case .wholeResponse:
             let sanitized = SpeechText.markdown(text).trimmingCharacters(in: .whitespacesAndNewlines)
             return containsSpeakableCharacters(sanitized) ? [sanitized] : []
         }
+    }
+
+    /// At most two short sentences (each <=24 characters, <=48 including the
+    /// separator). Never absorb a long sentence or a comma/ellipsis fragment.
+    /// The small cap bounds the extra first-chunk latency and PCM lookahead;
+    /// whole-response mode and the low-level sentence splitter are unchanged.
+    private static func coalescingShortSentences(_ sentences: [String]) -> [String] {
+        var chunks: [String] = []
+        var index = 0
+        while index < sentences.count {
+            let first = sentences[index]
+            if index + 1 < sentences.count,
+               first.count <= 24, sentences[index + 1].count <= 24,
+               first.count + 1 + sentences[index + 1].count <= 48,
+               let last = first.last, "。！？!?".contains(last),
+               let nextLast = sentences[index + 1].last, !"…‥、,".contains(nextLast) {
+                // Keep a separator for English/newline-delimited text; keep
+                // all original punctuation so the TTS retains natural pauses.
+                chunks.append(first + " " + sentences[index + 1])
+                index += 2
+            } else {
+                chunks.append(first)
+                index += 1
+            }
+        }
+        return chunks
     }
     
     /// テキストを1文単位の配列に分割する

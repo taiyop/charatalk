@@ -112,6 +112,8 @@ struct ConversationTurnTests {
             ("invalidated turn's late started callback cannot update newer UI", invalidatedCallbackCannotUpdateNewTurn),
             ("completed turn's late started callback cannot restore speaking state", completedCallbackCannotRestoreSpeaking),
             ("mic enabled while LLM outstanding discards the late reply", micDiscardsLateReply),
+            ("short sentences are grouped and prequeued while first chunk plays", groupedChunksPrequeue),
+            ("stop discards all prequeued chunks and late started callbacks", stopDiscardsQueuedChunks),
         ]
 
         var failures = 0
@@ -136,6 +138,46 @@ struct ConversationTurnTests {
     }
 
     // MARK: - Tests
+
+    static func groupedChunksPrequeue(_ env: TurnTestEnvironment) async throws {
+        let vm = env.viewModel
+        vm.inputText = "複数文の質問"
+        vm.sendCurrentMessage()
+        await env.backend.waitForRequestCount(1)
+        await env.backend.release(0, reply: "一。二。三。四。五。")
+        await env.audio.waitForPlayRequest(3)
+        try expect(env.tts.synthesizedTexts == ["一。 二。", "三。 四。", "五。"], "short sentences were not coalesced")
+        try expect(vm.subtitleMessage == nil, "prequeue must not reveal subtitles")
+        env.audio.signalPlaybackStarted()
+        try expect(vm.statusMessage == "お話し中… (1/3)", "first chunk status")
+        env.audio.finishPlayback()
+        env.audio.signalPlaybackStarted()
+        try expect(vm.statusMessage == "お話し中… (2/3)", "second queued chunk status")
+        env.audio.finishPlayback()
+        env.audio.signalPlaybackStarted()
+        try expect(vm.statusMessage == "お話し中… (3/3)", "third queued chunk status")
+        env.audio.finishPlayback()
+        try await waitUntil("all queued audio did not finish") { !vm.isBusy }
+        try expect(vm.errorMessage == nil, "completed queued audio caused an error")
+    }
+
+    static func stopDiscardsQueuedChunks(_ env: TurnTestEnvironment) async throws {
+        let vm = env.viewModel
+        vm.inputText = "停止する複数文"
+        vm.sendCurrentMessage()
+        await env.backend.waitForRequestCount(1)
+        await env.backend.release(0, reply: "一。二。三。四。五。六。七。八。")
+        await env.audio.waitForPlayRequest(3)
+        try expect(env.tts.synthesizeCallCount == 3, "lookahead must stay bounded before playback finishes")
+        let staleStarted = env.audio.pendingPlaybackStartedCallback()
+        vm.stopSpeaking(resetVoiceSession: true)
+        staleStarted?()
+        env.audio.finishPlayback()
+        await drainMainActor()
+        try expect(!vm.isBusy && !vm.isSpeaking, "stopped queue changed turn state")
+        try expect(env.tts.synthesizeCallCount == 3, "stop synthesized more queued chunks")
+        try expect(vm.statusMessage.isEmpty, "late queued start restored speaking status")
+    }
 
     /// Stop while the provider is still thinking. The late reply must not be
     /// appended, synthesized, or played, and must not surface an error.
