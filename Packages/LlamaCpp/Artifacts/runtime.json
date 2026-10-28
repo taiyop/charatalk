@@ -1,0 +1,20 @@
+{
+  "format": "charatalk-llamacpp-runtime-v1",
+  "archive": "Packages/LlamaCpp/Artifacts/llama.xcframework.zip",
+  "bytes": 18729960,
+  "sha256": "626b876c99b12dfb9bf03c5b6fbfe95501b6511a8b44419a05c8aef1c42faa57",
+  "llamaTag": "b11946",
+  "llamaRevision": "8ca4060b7e30e76baaa5670ee1ec1b760b7f8552",
+  "slices": [
+    "ios-arm64",
+    "ios-arm64_x86_64-simulator",
+    "macos-arm64_x86_64"
+  ],
+  "xcode": [
+    "Xcode 26.6",
+    "Build version 17F113"
+  ],
+  "sourceFiles": {
+    "Packages/LlamaCpp/Scripts/build-runtime.sh": "08cd49c0d80a7587d2849a11f7c11579d4fac50ddec794e54a477634b7a42840"
+  }
+}

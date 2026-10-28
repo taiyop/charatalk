@@ -3,7 +3,7 @@
 独自コード: **[Apache License 2.0](LICENSE)** · [第三者ライセンス・モデル・素材の条件](THIRD_PARTY_NOTICES.md) · [各ライブラリの用途](LICENSES/README.md)
 
 > 第三者コード・モデル・アバター・画像には、それぞれの条件が適用されます。
-> LFM2.5には商用利用制限があります。出所・権利が未確認のバイナリ・シェーダー・画像もあるため、
+> LFM3には商用利用制限があります。出所・権利が未確認のバイナリ・シェーダー・画像もあるため、
 > 公開・再配布前に [第三者ライセンス文書の公開前チェック](THIRD_PARTY_NOTICES.md#公開前チェック) を確認してください。
 
 **CharaTalk** は、iPhone 上で動作する 3D AI キャラクター対話アプリです。
@@ -48,10 +48,10 @@
 | 項目 | 全ローカル構成 | LLMを外部APIで利用する構成 |
 | --- | --- | --- |
 | 推奨端末 | **RAM 8 GB以上・A17 Pro以降**。例：iPhone 15 Pro / Pro Max、iPhone 16シリーズ | **RAM 6 GB以上・A15 Bionic以降**。例：iPhone 13 Pro / Pro Max、iPhone 14。余裕を重視するならRAM 8 GB以上 |
-| LLM | LFM2.5-1.2B-JP **Q4_K_M**（標準設定） | ChatGPT / Gemini / OpenAI互換API。ローカルLLMの取得・ロードは不要 |
+| LLM | LFM3-1.7B **Q4_K_M**（標準設定） | ChatGPT / Gemini / OpenAI互換API。ローカルLLMの取得・ロードは不要 |
 | 音声合成 | Irodori TTS **Q6_K**（標準設定）、**文ごと** | 同左。メモリ優先なら **Q4_K** |
-| アプリ全体のメモリ設計予算 | **3〜4 GB程度の余裕を見込む** | **2〜3 GB程度の余裕を見込む** |
-| モデルの保存容量 | 約 **1.87 GB**（LLM＋TTS＋AudioSeal関連ファイル） | 約 **1.13 GB**（TTS＋AudioSeal関連ファイル）。TTS Q4_Kなら約 **0.96 GB** |
+| アプリ全体のメモリ設計予算 | **3.5〜4.5 GB程度の余裕を見込む** | **2〜3 GB程度の余裕を見込む** |
+| モデルの保存容量 | 約 **2.24 GB**（LLM＋TTS＋AudioSeal関連ファイル） | 約 **1.13 GB**（TTS＋AudioSeal関連ファイル）。TTS Q4_Kなら約 **0.96 GB** |
 | 初回取得前の推奨空きストレージ | **5 GB以上** | **3 GB以上** |
 | 通信 | モデルの初回取得に必要。音声認識のオフライン動作は下記参照 | 初回取得に加え、会話時に安定したWi-Fi / モバイル通信が必要。APIの利用権限・料金・送信データの扱いを確認 |
 
@@ -68,16 +68,16 @@ RAM 4 GB端末は推奨対象外です。試す場合は外部LLM API＋TTS Q4_K
 
 | 部品 | 量子化 | モデルファイル容量 | メモリ参考値 | 数値の位置づけ |
 | --- | --- | --- | --- | --- |
-| ローカルLLM | Q4_0 | 約0.70 GB | 約0.85 GB | アプリ内の概算表示。実機計測の裏付けなし |
-| ローカルLLM | **Q4_K_M** | 約0.73 GB | **約0.90 GB** | 同上 |
-| ローカルLLM | Q6_K | 約0.96 GB | 約1.15 GB | 同上 |
-| ローカルLLM | Q8_0 | 約1.25 GB | 約1.45 GB | 同上 |
+| ローカルLLM | QAD Q4_0 | 約1.05 GB | 約1.25 GB | アプリ内の概算表示。実機計測の裏付けなし |
+| ローカルLLM | **Q4_K_M** | 約1.10 GB | **約1.30 GB** | 同上 |
+| ローカルLLM | Q6_K | 約1.43 GB | 約1.65 GB | 同上 |
+| ローカルLLM | Q8_0 | 約1.85 GB | 約2.05 GB | 同上 |
 | TTS | Q4_K | 約0.86 GB | 約0.99 GB | 上流のApple M5 / Metalでの単発CLIプロセスのピーク |
 | TTS | **Q6_K** | 約1.04 GB | **約1.16〜1.17 GB** | 同上。上流1.16 GB、アプリ内表示1.17 GB |
 | TTS | Q8_0 | 約1.21 GB | 約1.33 GB | 同上 |
 | TTS | F16 | 約1.92 GB | 約2.04 GB | 同上 |
 
-出典：実装の [LLMモデル定義](Packages/LlamaCpp/Sources/LlamaCpp/LFM2ModelBundle.swift)、
+出典：実装の [LLMモデル定義](Packages/LlamaCpp/Sources/LlamaCpp/LocalLLMModelBundle.swift)、
 [TTSモデル定義](Packages/IrodoriSpeechCpp/Sources/IrodoriSpeechCpp/SpeechCppModelBundle.swift)、
 [固定revisionのTTSベンチマーク](https://huggingface.co/sakasegawa/Irodori-TTS-v4.1-Small-MF-GGUF/blob/9db7da1bec3d1069ef8e29732e0497be60c7b047/README.md#accuracy)。
 **TTS値はiPhoneアプリ全体の計測ではありません。LLMの概算値と単純加算してアプリの実測ピークとは扱えません。**

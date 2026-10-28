@@ -33,7 +33,8 @@ python3 Tests/DependencyPackagingTests.py
 python3 Tests/DependencyPackagingTests.py --app-bundle "/path/to/CharaTalk.app"
 ```
 
-Checks the evaluated Swift package manifests, removal of the legacy Core ML TTS
+Checks the evaluated Swift package manifests, that the llama.cpp archive matches
+`Packages/LlamaCpp/Artifacts/runtime.json` and its pinned build script, removal of the legacy Core ML TTS
 native target, TTS-only bridge sources, absence of MToon shader resources, and
 removal of the direct AuthenticationServices dependency. With a built app, also
 checks its resources, linked frameworks and exported symbols. The shared speech.cpp
@@ -741,3 +742,29 @@ Model catalog (`GeminiInference.fetchModels`):
 - empty catalogs return `[]`; malformed envelopes fail with `invalidResponse`;
   401/403/429/5xx map to actionable Japanese model-list errors without exposing
   the body
+
+# Retired local LLM cleanup tests
+
+`App/Services/RetiredLocalLLMCleanup.swift` deletes local LLM files and settings
+that the app no longer offers (currently LFM2.5-1.2B-JP: `LFM2Models/` and the
+`lfm2ModelVariant` key). The app runs it once per launch in the background.
+When you retire another model, add its Application Support path and settings key
+to that file. The tests work in a temporary directory and a throwaway
+`UserDefaults` suite, so they never touch real app data:
+
+```sh
+(
+set -eu
+BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/retired-llm-tests.XXXXXX")"
+trap 'rm -f "$BIN_DIR/tests"; rmdir "$BIN_DIR"' EXIT
+swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
+  App/Services/RetiredLocalLLMCleanup.swift Tests/RetiredLocalLLMCleanupTests.swift \
+  -o "$BIN_DIR/tests"
+"$BIN_DIR/tests"
+)
+```
+
+Coverage: the LFM2.5 directory and setting are removed while `LocalLLMModels/`
+and `localLLMModelVariant` are kept; an empty install and repeat runs are no-ops;
+added entries are honored; `..`, `.` and empty paths can't delete anything outside
+Application Support or the folder itself.

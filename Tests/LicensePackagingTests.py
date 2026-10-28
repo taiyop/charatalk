@@ -39,7 +39,7 @@ VERIFIED_HASHES = {
     "LICENSES/VRMKit-MIT.txt": "a6dcb917c53408a3e47b53ce48c984fa33c00fe80c1c462119ef68ca7bd5e93e",
     "LICENSES/MoreCodable-MIT.txt": "a6dcb917c53408a3e47b53ce48c984fa33c00fe80c1c462119ef68ca7bd5e93e",
     "LICENSES/llama.cpp-MIT.txt": "3468798dd4eb1badf2d665d4afec49d424aa31fd4f0af91638ccd4b1a48615d0",
-    "LICENSES/LFM-Open-License-1.0.txt": "ef460d1fb5b871f61390d2bb3b79be6eb7cffadce09a7870e00032856478ad80",
+    "LICENSES/LFM-Open-License-1.0.txt": "5a020ce8f34b9fd3a59c4e5f000ea19d8b81c4e3ba2639f1e4f1533fb90e4f66",
     "LICENSES/CoreML-NOTICE.txt": "b0d7edad270d1b10e0adb9f66ed00b7cff7588fb83c4bf9d56645824d8122424",
 }
 APP_BUNDLE = None
@@ -93,7 +93,7 @@ class LicensePackagingTests(unittest.TestCase):
     def test_model_revisions_match_production(self):
         paths = (
             "Packages/IrodoriSpeechCpp/Sources/IrodoriSpeechCpp/SpeechCppModelBundle.swift",
-            "Packages/LlamaCpp/Sources/LlamaCpp/LFM2ModelBundle.swift",
+            "Packages/LlamaCpp/Sources/LlamaCpp/LocalLLMModelBundle.swift",
             "Sources/IrodoriTTS/ModelVariant.swift",
         )
         docs = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")

@@ -1,12 +1,14 @@
 import Foundation
 import IrodoriTTS
 
-/// Liquid AI の日本語特化軽量モデル LFM2.5-1.2B-JP の GGUF 量子化バリエーション
-public enum LFM2ModelVariant: String, CaseIterable, Codable, Sendable, Identifiable {
+/// Liquid AI の多言語（日本語対応）軽量モデル LFM3-1.7B の GGUF 量子化バリエーション
+public enum LocalLLMModelVariant: String, CaseIterable, Codable, Sendable, Identifiable {
     case q4_k_m = "Q4_K_M"
-    case q4_0 = "Q4_0"
+    case qad_q4_0 = "QAD-Q4_0"
     case q6_k = "Q6_K"
     case q8_0 = "Q8_0"
+
+    public static let modelName = "LFM3-1.7B"
 
     public var id: String { rawValue }
 
@@ -15,7 +17,7 @@ public enum LFM2ModelVariant: String, CaseIterable, Codable, Sendable, Identifia
     public var displayName: String {
         switch self {
         case .q4_k_m: return "Q4_K_M (標準・iPhone推奨)"
-        case .q4_0: return "Q4_0 (最小容量・最軽量)"
+        case .qad_q4_0: return "QAD Q4_0 (最小容量・量子化補正済み)"
         case .q6_k: return "Q6_K (高精度・バランス)"
         case .q8_0: return "Q8_0 (最高精度・高品質)"
         }
@@ -24,7 +26,7 @@ public enum LFM2ModelVariant: String, CaseIterable, Codable, Sendable, Identifia
     public var badgeText: String? {
         switch self {
         case .q4_k_m: return "iPhone推奨"
-        case .q4_0: return "最軽量"
+        case .qad_q4_0: return "最軽量"
         case .q6_k: return "高精度"
         case .q8_0: return "最高品質"
         }
@@ -32,65 +34,65 @@ public enum LFM2ModelVariant: String, CaseIterable, Codable, Sendable, Identifia
 
     public var approximateSizeText: String {
         switch self {
-        case .q4_k_m: return "731 MB"
-        case .q4_0: return "696 MB"
-        case .q6_k: return "963 MB"
-        case .q8_0: return "1.25 GB"
+        case .q4_k_m: return "1.10 GB"
+        case .qad_q4_0: return "1.05 GB"
+        case .q6_k: return "1.43 GB"
+        case .q8_0: return "1.85 GB"
         }
     }
 
     public var peakMemoryText: String {
         switch self {
-        case .q4_k_m: return "約 0.9 GB"
-        case .q4_0: return "約 0.85 GB"
-        case .q6_k: return "約 1.15 GB"
-        case .q8_0: return "約 1.45 GB"
+        case .q4_k_m: return "約 1.3 GB"
+        case .qad_q4_0: return "約 1.25 GB"
+        case .q6_k: return "約 1.65 GB"
+        case .q8_0: return "約 2.05 GB"
         }
     }
 
     public var fileName: String {
         switch self {
-        case .q4_k_m: return "LFM2.5-1.2B-JP-Q4_K_M.gguf"
-        case .q4_0: return "LFM2.5-1.2B-JP-Q4_0.gguf"
-        case .q6_k: return "LFM2.5-1.2B-JP-Q6_K.gguf"
-        case .q8_0: return "LFM2.5-1.2B-JP-Q8_0.gguf"
+        case .q4_k_m: return "LFM3-1.7B-Q4_K_M.gguf"
+        case .qad_q4_0: return "LFM3-1.7B-QAD-Q4_0.gguf"
+        case .q6_k: return "LFM3-1.7B-Q6_K.gguf"
+        case .q8_0: return "LFM3-1.7B-Q8_0.gguf"
         }
     }
 
     public var bytes: Int64 {
         switch self {
-        case .q4_k_m: return 730_895_296
-        case .q4_0: return 695_751_616
-        case .q6_k: return 962_843_584
-        case .q8_0: return 1_246_254_016
+        case .q4_k_m: return 1_099_627_808
+        case .qad_q4_0: return 1_049_615_680
+        case .q6_k: return 1_427_638_304
+        case .q8_0: return 1_846_238_496
         }
     }
 
     public var sha256: String {
         switch self {
-        case .q4_k_m: return "608beed14e975a4edd8932c42ac3e64cf1c97da4ee2c5f2c7b6bfbcdb1a90680"
-        case .q4_0: return "0ea6afb49790861d3cee7e44dabc6cc0d28d2148a95283ab0fa64c375938e43c"
-        case .q6_k: return "c4d871b37c432328f017e799cc172dbb6a44cb85b86b735b41db03b47a9e424a"
-        case .q8_0: return "60585553df37d8fa396368aef63ffeb236b2fe7c6b430652307a006e0f451e2c"
+        case .q4_k_m: return "3793e1e6e2266919d6e015287221b41100175a98eddaba92e111aed3b05c93c4"
+        case .qad_q4_0: return "43a7d09a0e9cba91b63eb7052488b9564569bddfd65754d2e426465e572a7452"
+        case .q6_k: return "54e1bd947c77167823d45bf495f1c3e2d226ca7fb242f83cfa141ee3a6ab55c6"
+        case .q8_0: return "8f6b24182258205e9e01e21f1f24a1f208c1e8115578825d202ce39976af20b6"
         }
     }
 
-    public static let revision = "170ae1cecf0e74b0b25bd704047160fba9f613c6"
+    public static let revision = "b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf"
 
     public var modelURL: URL {
-        URL(string: "https://huggingface.co/LiquidAI/LFM2.5-1.2B-JP-GGUF/resolve/\(Self.revision)/\(fileName)")!
+        URL(string: "https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/resolve/\(Self.revision)/\(fileName)")!
     }
 }
 
-public enum LFM2ModelBundle {
-    public static func isInstalled(at root: URL, variant: LFM2ModelVariant = .q4_k_m) -> Bool {
+public enum LocalLLMModelBundle {
+    public static func isInstalled(at root: URL, variant: LocalLLMModelVariant = .q4_k_m) -> Bool {
         (try? validate(at: root, variant: variant)) != nil
     }
 
-    public static func installedVariants(at root: URL) -> Set<LFM2ModelVariant> {
-        var result = Set<LFM2ModelVariant>()
+    public static func installedVariants(at root: URL) -> Set<LocalLLMModelVariant> {
+        var result = Set<LocalLLMModelVariant>()
         let fm = FileManager.default
-        for variant in LFM2ModelVariant.allCases {
+        for variant in LocalLLMModelVariant.allCases {
             guard let fileURL = try? ModelBundle.safeURL(variant.fileName, under: root),
                   let size = (try? fm.attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?.int64Value,
                   size == variant.bytes else {
@@ -101,19 +103,19 @@ public enum LFM2ModelBundle {
         return result
     }
 
-    public static func validate(at root: URL, variant: LFM2ModelVariant = .q4_k_m, verifyHashes: Bool = false) throws {
+    public static func validate(at root: URL, variant: LocalLLMModelVariant = .q4_k_m, verifyHashes: Bool = false) throws {
         let fm = FileManager.default
         let fileURL = try ModelBundle.safeURL(variant.fileName, under: root)
         let size = (try? fm.attributesOfItem(atPath: fileURL.path)[.size] as? NSNumber)?.int64Value
         guard size == variant.bytes else {
-            throw IrodoriError.invalid("LFM2.5-1.2B-JP モデルが見つからないかサイズが不一致です: \(variant.fileName)")
+            throw IrodoriError.invalid("\(LocalLLMModelVariant.modelName) モデルが見つからないかサイズが不一致です: \(variant.fileName)")
         }
         if verifyHashes, try ModelBundle.checksum(fileURL) != variant.sha256 {
-            throw IrodoriError.invalid("LFM2.5-1.2B-JP モデルのハッシュが一致しません: \(variant.fileName)")
+            throw IrodoriError.invalid("\(LocalLLMModelVariant.modelName) モデルのハッシュが一致しません: \(variant.fileName)")
         }
     }
 
-    public static func delete(variant: LFM2ModelVariant, at root: URL) throws {
+    public static func delete(variant: LocalLLMModelVariant, at root: URL) throws {
         let fm = FileManager.default
         let fileURL = try ModelBundle.safeURL(variant.fileName, under: root)
         if fm.fileExists(atPath: fileURL.path) {
@@ -126,7 +128,7 @@ public enum LFM2ModelBundle {
 
     public static func download(
         to destination: URL,
-        variant: LFM2ModelVariant = .q4_k_m,
+        variant: LocalLLMModelVariant = .q4_k_m,
         progress: @escaping @Sendable (Int64, Int64, String) -> Void = { _, _, _ in }
     ) async throws {
         let files = FileManager.default

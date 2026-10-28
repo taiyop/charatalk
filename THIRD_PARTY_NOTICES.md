@@ -22,7 +22,7 @@ CharaTalkの独自コード・独自ドキュメントは [Apache-2.0](LICENSE) 
 | speech.cpp 0.8.10 | MIT、Copyright (c) 2026 Sakasegawa | [speech.cpp-MIT.txt](LICENSES/speech.cpp-MIT.txt)。revision `a72f1bbedd50e293d5b3f4c2bf0fb44ec003227d` |
 | speech.cpp内ggml | MIT、Copyright (c) 2023-2026 The ggml authors | [ggml-MIT.txt](LICENSES/ggml-MIT.txt)。revision `a655cf6910770404213bc338e622cd82b08ca277` |
 | ggml内YaRN由来コード | MIT、Copyright (c) 2023 Jeffrey Quesnelle and Bowen Peng | [YaRN-MIT.txt](LICENSES/YaRN-MIT.txt)。上流NOTICEに基づき保持 |
-| llama.cpp / ggml / mtmdランタイム | 上流はMIT、Copyright (c) 2023-2026 The ggml authors | [llama.cpp-MIT.txt](LICENSES/llama.cpp-MIT.txt)。**同梱バイナリのrevision・全構成は未確認** |
+| llama.cpp / ggml / mtmdランタイム | 上流はMIT、Copyright (c) 2023-2026 The ggml authors | [llama.cpp-MIT.txt](LICENSES/llama.cpp-MIT.txt)。同梱バイナリは上流タグ `b11946`（`8ca4060b7e30e76baaa5670ee1ec1b760b7f8552`）を無改変でビルド。手順は [build-runtime.sh](Packages/LlamaCpp/Scripts/build-runtime.sh)、記録は [runtime.json](Packages/LlamaCpp/Artifacts/runtime.json) |
 | VRMKit / VRMKitRuntime / VRMRealityKit | 上流はMIT、Copyright (c) 2018 Tatsuya Tanaka | [VRMKit-MIT.txt](LICENSES/VRMKit-MIT.txt)。**同梱ソースの取り込みrevision・改変全体は未確認** |
 | VRMKit内MoreCodable | MIT、Copyright (c) 2018 Tatsuya Tanaka | [MoreCodable-MIT.txt](LICENSES/MoreCodable-MIT.txt)。既存の原文も保持 |
 
@@ -40,7 +40,7 @@ ModernBERT・DACVAE・Descript由来部品は現行TTSにも関係し、AudioSea
 
 ## モデル・素材
 
-- モデルは実行時に別途取得します。Irodori等のMIT／Apache-2.0と、LFM2.5の
+- モデルは実行時に別途取得します。Irodori等のMIT／Apache-2.0と、LFM3の
   **商用利用制限を含むLFM Open License v1.0** は区別してください。
   本書の「モデル別の条件と固定revision」を参照してください。
 - 同梱の標準モデルは `App/Resources/default_avatar.vrm`（**vrm_sample — taiyop**）です。
@@ -64,7 +64,7 @@ ModernBERT・DACVAE・Descript由来部品は現行TTSにも関係し、AudioSea
 | --- | --- | --- |
 | [Irodori TTS GGUF](https://huggingface.co/sakasegawa/Irodori-TTS-v4.1-Small-MF-GGUF) | `9db7da1bec3d1069ef8e29732e0497be60c7b047` | 音声合成。Irodoriと日本語Semantic-DACVAE追加部分はMIT、Meta DACVAE由来部分はApache-2.0 |
 | [Core ML / AudioSeal](https://huggingface.co/AILogDev/Irodori-TTS-v4.1-Small-MF-CoreML) | 標準版 `b02a670f0cb41c382844672fa8f0f03b3b9b8082`。INT8版は可変タグ `v0.2.0-int8` | 部品別にMIT／Apache-2.0。現行speech.cpp経路はTTS重み全体ではなくAudioSeal関連ファイルを取得。透かしOFFでも取得対象 |
-| [LFM2.5-1.2B-JP GGUF](https://huggingface.co/LiquidAI/LFM2.5-1.2B-JP-GGUF) | `170ae1cecf0e74b0b25bd704047160fba9f613c6` | ローカル返答生成。[LFM Open License v1.0](LICENSES/LFM-Open-License-1.0.txt)。MIT／Apache-2.0ではない |
+| [LFM3-1.7B GGUF](https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF) | `b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf` | ローカル返答生成。[LFM Open License v1.0](LICENSES/LFM-Open-License-1.0.txt)。MIT／Apache-2.0ではない |
 
 - Irodori元モデル: `Aratako/Irodori-TTS-v4.1-Small-MF` revision
   `ccc78f5d480b6e51b69b2d5042a14c4da04fea6e`、`Aratako/Semantic-DACVAE-Japanese-32dim`
@@ -115,7 +115,7 @@ MITの著作権表示・許諾文、Apache-2.0の再配布・変更表示・NOTI
 
 ## 公開前チェック
 
-- [ ] llama同梱バイナリの生成commit・構成・追加依存・パッチを特定し、条文と照合する。
+- [ ] llama同梱バイナリ（`b11946`・パッチなし・ios/ios-sim/macOS）に含まれる上流の追加依存を条文と照合する。
 - [ ] 残るVRMKitソースの取り込みrevision・改変履歴・条件を確認する（MToonシェーダー／metallibは除外済み）。
 - [ ] vrm_sampleの使用素材・権利を作者に確認する。商用等は別途許諾または別モデルを用意する。
 - [ ] アイコン等の作成者・取得経路・権利を確認し、許諾を記録するか差し替える。

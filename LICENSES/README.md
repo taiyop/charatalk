@@ -15,8 +15,8 @@ Apache-2.0全文はルートの [LICENSE](../LICENSE) を共用します。
 | `speech.cpp-MIT.txt`、`ggml-MIT.txt`、`YaRN-MIT.txt` | [Irodori SDK内の同名条文](https://github.com/Corvelis/irodori-tts-iphone/tree/e316752e21bcba8b28532c5050ac3a4cc1b5d130/Packages/IrodoriSpeechCpp/LICENSES)。既存のパッケージ内コピーも保持 |
 | `VRMKit-MIT.txt` | [VRMKit確認用snapshot](https://github.com/tattn/VRMKit/blob/6543973e6103d9cdea74a9323ed2d42c8bd03686/LICENSE)。同梱コードの取り込みrevisionではない |
 | `MoreCodable-MIT.txt` | `Packages/VRMKit/Sources/VRMKit/Extensions/MoreCodable/LICENSE` の既存原文コピー |
-| `llama.cpp-MIT.txt` | [llama.cpp確認用snapshot](https://github.com/ggml-org/llama.cpp/blob/7879491cf4c1cfb25acbd78fae34a9e7a8e3a062/LICENSE)。同梱バイナリの生成revisionではない |
-| `LFM-Open-License-1.0.txt` | [使用モデルの固定revisionのLICENSE](https://huggingface.co/LiquidAI/LFM2.5-1.2B-JP-GGUF/blob/170ae1cecf0e74b0b25bd704047160fba9f613c6/LICENSE) |
+| `llama.cpp-MIT.txt` | [同梱バイナリの生成revisionのLICENSE](https://github.com/ggml-org/llama.cpp/blob/8ca4060b7e30e76baaa5670ee1ec1b760b7f8552/LICENSE)（タグ `b11946`） |
+| `LFM-Open-License-1.0.txt` | [使用モデルの固定revisionのLICENSE](https://huggingface.co/LiquidAI/LFM3-1.7B-GGUF/blob/b3f2ae5d73cd3c91bf40e8ba752c648aa05dffdf/LICENSE) |
 | `CoreML-NOTICE.txt` | [AudioSeal取得元の固定revisionのNOTICE](https://huggingface.co/AILogDev/Irodori-TTS-v4.1-Small-MF-CoreML/blob/b02a670f0cb41c382844672fa8f0f03b3b9b8082/NOTICE) を原文保持 |
 
 上流Irodori SDKのNOTICEは [ルートNOTICE](../NOTICE) の区切り以降に原文を保持しています。
@@ -43,15 +43,15 @@ Irodoriなどの推論処理を通じて利用することを意味します。
 | **speech.cpp**（[speech.cpp-MIT.txt](speech.cpp-MIT.txt)） | [IrodoriSpeechCpp/Package.swift](../Packages/IrodoriSpeechCpp/Package.swift) の `SpeechCpp.xcframework.zip`、[IrodoriSpeechBridge.mm](../Packages/IrodoriSpeechCpp/Sources/IrodoriSpeechNative/IrodoriSpeechBridge.mm) | Irodori GGUFモデルを読み込み、iPhoneのMetal GPUで音声合成を実行するランタイム。SwiftとC/C++推論処理を橋渡しする。未使用のReazonSpeech認識ラッパーとモデル取得コードは除去済み。共有ランタイムは変更せず維持し、アプリのマイク認識にはAppleのSpeechフレームワークを使う。 |
 | **ggml**（[ggml-MIT.txt](ggml-MIT.txt)） | speech.cpp内部の依存。組み込み設定は [build-runtime.sh](../Packages/IrodoriSpeechCpp/Scripts/build-runtime.sh)。ローカルLLMのllama.cppランタイムにもggml由来部品が含まれる | ニューラルネットワークのテンソル演算、量子化された重みの処理、Metalでの演算を支える。アプリから直接APIを呼ぶのではなく、speech.cpp／llama.cpp経由で使う。両ランタイムのggmlが同じrevisionであることは意味しない。 |
 | **YaRN由来コード**（[YaRN-MIT.txt](YaRN-MIT.txt)） | speech.cppに組み込まれるggml由来コードの帰属表示。パッケージ内にも [同名条文](../Packages/IrodoriSpeechCpp/LICENSES/YaRN-MIT.txt) を保持 | Transformerの位置表現（RoPE）のスケーリング・長いコンテキストへの対応に関する由来コード。アプリ独立の機能や直接依存ではない。条文の保持は、現在のIrodori推論でYaRN方式を有効化していることを示すものではない。 |
-| **llama.cpp**（[llama.cpp-MIT.txt](llama.cpp-MIT.txt)） | [LocalLLMManager.swift](../App/Services/LocalLLMManager.swift) → [LlamaCppEngine.swift](../Packages/LlamaCpp/Sources/LlamaCpp/LlamaCppEngine.swift) → [LlamaCppBridge.mm](../Packages/LlamaCpp/Sources/LlamaCppNative/LlamaCppBridge.mm)。バイナリは [LlamaCpp/Package.swift](../Packages/LlamaCpp/Package.swift) | LFM2.5のGGUFモデルを端末内で実行し、会話履歴・システムプロンプトから返答文を生成する。LLM設定でローカルLFMを選んだ場合に使う。ChatGPT・Gemini・OpenAI互換APIの通信には使用しない。同梱バイナリの生成revision・全構成は未確認。 |
+| **llama.cpp**（[llama.cpp-MIT.txt](llama.cpp-MIT.txt)） | [LocalLLMManager.swift](../App/Services/LocalLLMManager.swift) → [LlamaCppEngine.swift](../Packages/LlamaCpp/Sources/LlamaCpp/LlamaCppEngine.swift) → [LlamaCppBridge.mm](../Packages/LlamaCpp/Sources/LlamaCppNative/LlamaCppBridge.mm)。バイナリは [LlamaCpp/Package.swift](../Packages/LlamaCpp/Package.swift) | LFM3のGGUFモデルを端末内で実行し、会話履歴・システムプロンプトから返答文を生成する。LLM設定でローカルLFMを選んだ場合に使う。ChatGPT・Gemini・OpenAI互換APIの通信には使用しない。同梱バイナリは上流 `b11946` を無改変でビルドしたもの（[build-runtime.sh](../Packages/LlamaCpp/Scripts/build-runtime.sh)、[runtime.json](../Packages/LlamaCpp/Artifacts/runtime.json)）。 |
 | **VRMKit / VRMKitRuntime / VRMRealityKit**（[VRMKit-MIT.txt](VRMKit-MIT.txt)） | [Packages/VRMKit](../Packages/VRMKit)、アプリの [VRMCharacterController.swift](../App/Services/VRMCharacterController.swift) | VRM/glTFモデルの読み込み、ボーン・表情・視線などの実行時制御、RealityKit上の3Dキャラクター表示に使う。アプリの待機モーション、瞬き、音声連動の口の開閉をモデルへ反映する。MToonシェーダー実装・metallibは除去済みで、MToon素材は従来のUnlit近似描画を使う。ライブラリのMITはアバター素材そのものの利用許諾ではない。 |
 | **MoreCodable**（[MoreCodable-MIT.txt](MoreCodable-MIT.txt)） | [AnyCodingKey.swift](../Packages/VRMKit/Sources/VRMKit/Extensions/MoreCodable/AnyCodingKey.swift)。呼び出し元は [VRM1.swift](../Packages/VRMKit/Sources/VRMKit/VRM/VRM1.swift) の `Humanoid.HumanBones` | 動的な文字列をSwiftの `CodingKey` として扱う小さな補助コード。VRM 1.0の `hips`、`head` など、ボーン名をキーにしたJSONを読み書きする。MoreCodable全体を外部パッケージとして導入しているわけではない。 |
-| **LFM2.5-1.2B-JP**（[LFM-Open-License-1.0.txt](LFM-Open-License-1.0.txt)） | [LFM2ModelBundle.swift](../Packages/LlamaCpp/Sources/LlamaCpp/LFM2ModelBundle.swift) でモデル取得、[LocalLLMManager.swift](../App/Services/LocalLLMManager.swift) で実行。[LLMClient.swift](../App/Services/LLMClient.swift) の `.localLFM` 分岐から利用 | ローカル会話の日本語の返答文を生成するモデル重み。上記llama.cppは実行エンジン、こちらはそのエンジンで動かすモデル。実行時に別途ダウンロードし、ローカルLLM選択時に使用する。MITではなく商用利用制限を含むLFM Open Licenseが適用される。 |
+| **LFM3-1.7B**（[LFM-Open-License-1.0.txt](LFM-Open-License-1.0.txt)） | [LocalLLMModelBundle.swift](../Packages/LlamaCpp/Sources/LlamaCpp/LocalLLMModelBundle.swift) でモデル取得、[LocalLLMManager.swift](../App/Services/LocalLLMManager.swift) で実行。[LLMClient.swift](../App/Services/LLMClient.swift) の `.localLFM` 分岐から利用 | ローカル会話の日本語の返答文を生成するモデル重み。上記llama.cppは実行エンジン、こちらはそのエンジンで動かすモデル。実行時に別途ダウンロードし、ローカルLLM選択時に使用する。MITではなく商用利用制限を含むLFM Open Licenseが適用される。 |
 | **Irodori Core ML変換・DACVAE等の帰属表示**（[CoreML-NOTICE.txt](CoreML-NOTICE.txt)） | 取得元の複合モデル一式に関するNOTICE。現在のCore ML実装は [AudioWatermark.swift](../Sources/IrodoriTTS/AudioWatermark.swift) | 単独のライブラリ名ではなく、Irodori・ModernBERT・DACVAE・Descript・AudioSealの帰属とCore ML変換の変更を記録した原文コピー。旧Core ML版TTSエンジンは除去済みだが、Core MLモデルをAudioSeal用に取得・使用するため、このNOTICEは維持する。 |
 
 ### 現在のアプリでの役割のまとめ
 
-- **返答文の生成（ローカル選択時）**: LFM2.5モデルをllama.cppで実行する。
+- **返答文の生成（ローカル選択時）**: LFM3モデルをllama.cppで実行する。
 - **返答文の読み上げ**: Irodoriモデルをspeech.cppで実行する。ModernBERTや
   DACVAE／Descript由来部品は、その音声合成モデル側の構成要素。
 - **合成音声への透かし（設定ON時）**: AudioSealをCore MLで実行する。

@@ -17,13 +17,13 @@ public enum LocalLLMError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .modelNotInstalled:
-            return "ローカルLLM (LFM2.5-1.2B-JP) のモデルがダウンロードされていません。設定画面からダウンロードしてください。"
+            return "ローカルLLM (LFM3-1.7B) のモデルがダウンロードされていません。設定画面からダウンロードしてください。"
         case .modelDownloadFailed(let msg):
-            return "LFM2.5 モデルの取得に失敗しました: \(msg)"
+            return "LFM3 モデルの取得に失敗しました: \(msg)"
         case .generationFailed(let msg):
             return "ローカルLLMでの生成に失敗しました: \(msg)"
         case .simulatorNotSupported:
-            return "LFM2.5-1.2B-JP の Metal 推論は実機 iPhone でのみ動作します。"
+            return "LFM3-1.7B の Metal 推論は実機 iPhone でのみ動作します。"
         }
     }
 }
@@ -31,6 +31,7 @@ public enum LocalLLMError: LocalizedError {
 @MainActor
 public final class LocalLLMManager: ObservableObject {
     public static let shared = LocalLLMManager()
+    private static let variantDefaultsKey = "localLLMModelVariant"
 
     @Published public private(set) var isModelInstalled: Bool = false
     @Published public private(set) var isDownloading: Bool = false
@@ -39,8 +40,8 @@ public final class LocalLLMManager: ObservableObject {
     @Published public private(set) var isGenerating: Bool = false
 
     #if os(iOS) && canImport(LlamaCpp)
-    @Published public private(set) var selectedVariant: LFM2ModelVariant = .q4_k_m
-    @Published public private(set) var installedVariants: Set<LFM2ModelVariant> = []
+    @Published public private(set) var selectedVariant: LocalLLMModelVariant = .q4_k_m
+    @Published public private(set) var installedVariants: Set<LocalLLMModelVariant> = []
     private let engine = LlamaCppEngine()
     #endif
 
@@ -50,12 +51,12 @@ public final class LocalLLMManager: ObservableObject {
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        self.modelsDirectory = appSupport.appendingPathComponent("LFM2Models", isDirectory: true)
+        self.modelsDirectory = appSupport.appendingPathComponent("LocalLLMModels", isDirectory: true)
         try? FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
 
         #if os(iOS) && canImport(LlamaCpp)
-        if let savedVariantRaw = UserDefaults.standard.string(forKey: "lfm2ModelVariant"),
-           let variant = LFM2ModelVariant(rawValue: savedVariantRaw) {
+        if let savedVariantRaw = UserDefaults.standard.string(forKey: Self.variantDefaultsKey),
+           let variant = LocalLLMModelVariant(rawValue: savedVariantRaw) {
             self.selectedVariant = variant
         } else {
             self.selectedVariant = .q4_k_m
@@ -93,7 +94,7 @@ public final class LocalLLMManager: ObservableObject {
 
     public func checkModelInstallation() {
         #if os(iOS) && canImport(LlamaCpp)
-        installedVariants = LFM2ModelBundle.installedVariants(at: modelsDirectory)
+        installedVariants = LocalLLMModelBundle.installedVariants(at: modelsDirectory)
         isModelInstalled = installedVariants.contains(selectedVariant)
         #else
         isModelInstalled = false
@@ -101,14 +102,14 @@ public final class LocalLLMManager: ObservableObject {
     }
 
     #if os(iOS) && canImport(LlamaCpp)
-    public func isVariantInstalled(_ variant: LFM2ModelVariant) -> Bool {
+    public func isVariantInstalled(_ variant: LocalLLMModelVariant) -> Bool {
         installedVariants.contains(variant)
     }
 
-    public func selectVariant(_ variant: LFM2ModelVariant) {
+    public func selectVariant(_ variant: LocalLLMModelVariant) {
         guard variant != selectedVariant else { return }
         selectedVariant = variant
-        UserDefaults.standard.set(variant.rawValue, forKey: "lfm2ModelVariant")
+        UserDefaults.standard.set(variant.rawValue, forKey: Self.variantDefaultsKey)
         checkModelInstallation()
         if !isGenerating {
             Task {
@@ -136,18 +137,18 @@ public final class LocalLLMManager: ObservableObject {
         }
     }
 
-    public func deleteModel(variant: LFM2ModelVariant? = nil) {
+    public func deleteModel(variant: LocalLLMModelVariant? = nil) {
         #if os(iOS) && canImport(LlamaCpp)
         let targetVariant = variant ?? selectedVariant
         Task {
             await releaseLoadedModel()
-            try? LFM2ModelBundle.delete(variant: targetVariant, at: modelsDirectory)
+            try? LocalLLMModelBundle.delete(variant: targetVariant, at: modelsDirectory)
             checkModelInstallation()
         }
         #endif
     }
 
-    public func downloadModel(variant: LFM2ModelVariant? = nil) async throws {
+    public func downloadModel(variant: LocalLLMModelVariant? = nil) async throws {
         #if targetEnvironment(simulator)
         throw LocalLLMError.simulatorNotSupported
         #elseif os(iOS) && canImport(LlamaCpp)
@@ -155,19 +156,19 @@ public final class LocalLLMManager: ObservableObject {
         let targetVariant = variant ?? selectedVariant
         if targetVariant != selectedVariant {
             selectedVariant = targetVariant
-            UserDefaults.standard.set(targetVariant.rawValue, forKey: "lfm2ModelVariant")
+            UserDefaults.standard.set(targetVariant.rawValue, forKey: Self.variantDefaultsKey)
         }
 
         isDownloading = true
         downloadProgress = 0.0
-        downloadStatusText = "LFM2.5 (\(targetVariant.shortLabel)) を取得中…"
+        downloadStatusText = "LFM3 (\(targetVariant.shortLabel)) を取得中…"
         defer {
             isDownloading = false
             checkModelInstallation()
         }
 
         do {
-            try await LFM2ModelBundle.download(to: modelsDirectory, variant: targetVariant) { [weak self] completed, total, _ in
+            try await LocalLLMModelBundle.download(to: modelsDirectory, variant: targetVariant) { [weak self] completed, total, _ in
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
                     let fraction = Double(completed) / Double(max(total, 1))
@@ -175,7 +176,7 @@ public final class LocalLLMManager: ObservableObject {
                     let completedMB = Double(completed) / (1024 * 1024)
                     let totalMB = Double(total) / (1024 * 1024)
                     self.downloadStatusText = String(
-                        format: "LFM2.5 %@ (%.0f%%) - %.1f / %.1f MB",
+                        format: "LFM3 %@ (%.0f%%) - %.1f / %.1f MB",
                         targetVariant.shortLabel,
                         fraction * 100,
                         completedMB,
@@ -198,7 +199,7 @@ public final class LocalLLMManager: ObservableObject {
     public func generate(
         systemPrompt: String,
         messages: [ChatMessage],
-        temperature: Double = 0.3,
+        temperature: Double = 0.1,
         maxTokens: Int = 256,
         onToken: (@Sendable (String) -> Void)? = nil
     ) async throws -> String {

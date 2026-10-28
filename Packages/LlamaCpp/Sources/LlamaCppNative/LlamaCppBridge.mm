@@ -88,7 +88,7 @@ void set_bridge_error(NSError **error, const std::string &message) {
 
         struct llama_model *model = llama_model_load_from_file(path.UTF8String, model_params);
         if (!model) {
-            throw std::runtime_error("LFM2.5 GGUFモデルの読み込みに失敗しました: " + std::string(path.UTF8String));
+            throw std::runtime_error("LFM3 GGUFモデルの読み込みに失敗しました: " + std::string(path.UTF8String));
         }
 
         struct llama_context_params ctx_params = llama_context_default_params();
@@ -102,7 +102,7 @@ void set_bridge_error(NSError **error, const std::string &message) {
         struct llama_context *ctx = llama_init_from_model(model, ctx_params);
         if (!ctx) {
             llama_model_free(model);
-            throw std::runtime_error("LFM2.5 推論コンテキストの初期化に失敗しました。");
+            throw std::runtime_error("LFM3 推論コンテキストの初期化に失敗しました。");
         }
 
         _model = model;
@@ -140,15 +140,19 @@ void set_bridge_error(NSError **error, const std::string &message) {
             throw std::runtime_error("モデルボキャブラリの取得に失敗しました。");
         }
 
-        // LFM2.5-1.2B-JP の ChatML フォーマットを構築
+        // LFM3-1.7B の ChatML フォーマットを構築。
+        // 会話の応答速度を優先して思考を無効化する（公式テンプレートの enable_thinking=false 相当）
         std::string prompt = "<|startoftext|>";
         for (NSDictionary<NSString *, NSString *> *msg in messages) {
             NSString *role = msg[@"role"] ?: @"user";
             NSString *content = msg[@"content"] ?: @"";
             prompt += "<|im_start|>" + std::string(role.UTF8String) + "\n";
+            if ([role isEqualToString:@"assistant"]) {
+                prompt += "<think></think>";
+            }
             prompt += std::string(content.UTF8String) + "<|im_end|>\n";
         }
-        prompt += "<|im_start|>assistant\n";
+        prompt += "<|im_start|>assistant\n<think></think>";
 
         // トークナイズ
         std::vector<llama_token> tokens(prompt.length() + 32);
@@ -209,16 +213,14 @@ void set_bridge_error(NSError **error, const std::string &message) {
             n_past += cur_batch;
         }
 
-        // サンプラーチェーンの初期化 (LFM2.5 推奨パラメータ)
+        // サンプラーチェーンの初期化 (LFM3 推奨パラメータ)
         struct llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
         struct llama_sampler *smpl = llama_sampler_chain_init(sparams);
 
-        // 1. リピートペナルティ (1.05)
-        llama_sampler_chain_add(smpl, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), 64, 1.05f, 0.0f, 0.0f));
+        // 1. リピートペナルティ (1.1)
+        llama_sampler_chain_add(smpl, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), 64, 1.1f, 0.0f, 0.0f));
         // 2. top_k (50)
         llama_sampler_chain_add(smpl, llama_sampler_init_top_k(50));
-        // 3. min_p (0.15)
-        llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.15f, 1));
 
         float eff_temp = std::max(0.0f, temperature);
         if (eff_temp > 0.01f) {
@@ -284,6 +286,11 @@ void set_bridge_error(NSError **error, const std::string &message) {
         size_t end_tag_pos = generated_text.find("<|im_end|>");
         if (end_tag_pos != std::string::npos) {
             generated_text.erase(end_tag_pos);
+        }
+        // 思考を無効化しても出力された場合に備え、思考部分を返答から除く
+        size_t think_end_pos = generated_text.rfind("</think>");
+        if (think_end_pos != std::string::npos) {
+            generated_text.erase(0, think_end_pos + std::string("</think>").size());
         }
 
         NSString *result = [[NSString alloc] initWithBytes:generated_text.data()

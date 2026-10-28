@@ -55,6 +55,19 @@ class DependencyPackagingTests(unittest.TestCase):
         self.assertEqual(len(raw), metadata["bytes"])
         self.assertEqual(hashlib.sha256(raw).hexdigest(), metadata["sha256"])
 
+    def test_llama_runtime_matches_pinned_lfm3_build(self):
+        artifact = ROOT / "Packages/LlamaCpp/Artifacts"
+        metadata = json.loads((artifact / "runtime.json").read_text())
+        raw = (artifact / "llama.xcframework.zip").read_bytes()
+        self.assertEqual(len(raw), metadata["bytes"])
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), metadata["sha256"])
+        script = (ROOT / "Packages/LlamaCpp/Scripts/build-runtime.sh").read_text()
+        self.assertIn(f"llama_tag={metadata['llamaTag']}", script)
+        self.assertIn(f"llama_revision={metadata['llamaRevision']}", script)
+        for path, digest in metadata["sourceFiles"].items():
+            with self.subTest(path=path):
+                self.assertEqual(hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), digest)
+
     @unittest.skipUnless(shutil.which("swift"), "Requires Swift")
     def test_vrm_renderer_has_no_mtoon_shader_or_resources(self):
         graph = targets("Packages/VRMKit")

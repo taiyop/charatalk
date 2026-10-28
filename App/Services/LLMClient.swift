@@ -49,7 +49,7 @@ public actor LLMClient {
             return try await LocalLLMManager.shared.generate(
                 systemPrompt: systemPrompt,
                 messages: messages,
-                temperature: 0.3 // LFM2.5推奨
+                temperature: 0.1 // LFM3推奨
             )
             #else
             throw LocalLLMError.simulatorNotSupported

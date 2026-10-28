@@ -2,6 +2,12 @@ import SwiftUI
 
 @main
 struct CharaTalkApp: App {
+    init() {
+        Task.detached(priority: .utility) {
+            RetiredLocalLLMCleanup.run()
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             if #available(iOS 18.0, *) {

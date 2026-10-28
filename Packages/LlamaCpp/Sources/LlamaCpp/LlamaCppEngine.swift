@@ -4,11 +4,11 @@ import LlamaCppNative
 public actor LlamaCppEngine {
     private let bridge = LlamaCppBridge()
     private var loadedModelPath: String?
-    public private(set) var preparedVariant: LFM2ModelVariant?
+    public private(set) var preparedVariant: LocalLLMModelVariant?
 
     public init() {}
 
-    public func prepare(modelFile: URL, variant: LFM2ModelVariant, contextLength: Int = 4096) throws {
+    public func prepare(modelFile: URL, variant: LocalLLMModelVariant, contextLength: Int = 4096) throws {
         if loadedModelPath == modelFile.path && preparedVariant == variant {
             return
         }

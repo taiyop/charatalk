@@ -1061,13 +1061,13 @@ public struct SettingsView: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 #if os(iOS) && canImport(LlamaCpp)
-                Text("LFM2.5-1.2B-JP (\(localLLM.selectedVariant.shortLabel))")
+                Text("\(LocalLLMModelVariant.modelName) (\(localLLM.selectedVariant.shortLabel))")
                     .font(.headline)
-                Text("Liquid AI 日本語特化 1.2B・Metal GPU完全オンデバイス")
+                Text("Liquid AI 日本語対応 1.7B・Metal GPU完全オンデバイス")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 #else
-                Text("LFM2.5-1.2B-JP")
+                Text("LFM3-1.7B")
                     .font(.headline)
                 Text("オンデバイス推論モデル")
                     .font(.caption)
@@ -1096,7 +1096,7 @@ public struct SettingsView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             
-            ForEach(LFM2ModelVariant.allCases) { variant in
+            ForEach(LocalLLMModelVariant.allCases) { variant in
                 let isSelected = localLLM.selectedVariant == variant
                 let isInstalled = localLLM.isVariantInstalled(variant)
                 
@@ -1186,7 +1186,7 @@ public struct SettingsView: View {
                         HStack {
                             Image(systemName: "arrow.down.circle.fill")
                             #if os(iOS) && canImport(LlamaCpp)
-                            Text("LFM2.5 (\(localLLM.selectedVariant.shortLabel)) をダウンロード (\(localLLM.selectedVariant.approximateSizeText))")
+                            Text("LFM3 (\(localLLM.selectedVariant.shortLabel)) をダウンロード (\(localLLM.selectedVariant.approximateSizeText))")
                             #else
                             Text("ローカルモデルをダウンロード")
                             #endif
@@ -1204,7 +1204,7 @@ public struct SettingsView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 #if os(iOS) && canImport(LlamaCpp)
-                Button("LFM2.5 (\(localLLM.selectedVariant.shortLabel)) モデルを削除", role: .destructive) {
+                Button("LFM3 (\(localLLM.selectedVariant.shortLabel)) モデルを削除", role: .destructive) {
                     localLLM.deleteModel(variant: localLLM.selectedVariant)
                 }
                 .font(.caption)

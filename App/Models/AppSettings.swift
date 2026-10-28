@@ -18,7 +18,7 @@ public enum LLMProviderType: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .localLFM: return "ローカルLLM (LFM2.5-1.2B-JP)"
+        case .localLFM: return "ローカルLLM (LFM3-1.7B)"
         case .chatGPTSignIn: return "Sign in with ChatGPT"
         case .gemini: return "Gemini (APIキー)"
         case .openAICompatible: return "OpenAI 互換 API (APIキー)"
@@ -55,16 +55,6 @@ public final class AppSettings: ObservableObject {
         get { LLMProviderType(rawValue: llmProviderTypeRaw) ?? .localLFM }
         set { llmProviderTypeRaw = newValue.rawValue }
     }
-    
-    // MARK: - Local LLM (LFM2.5-1.2B-JP)
-    @AppStorage("lfm2ModelVariant") public var lfm2ModelVariantRaw: String = "Q4_K_M"
-    
-    #if os(iOS) && canImport(LlamaCpp)
-    public var lfm2ModelVariant: LFM2ModelVariant {
-        get { LFM2ModelVariant(rawValue: lfm2ModelVariantRaw) ?? .q4_k_m }
-        set { lfm2ModelVariantRaw = newValue.rawValue }
-    }
-    #endif
     
     // MARK: - Sign in with ChatGPT
     // An empty preference selects the first model in the signed-in account's catalog.
