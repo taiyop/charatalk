@@ -5,6 +5,9 @@ public struct ChatOverlayView: View {
     @ObservedObject var speechService: SpeechAnalyzerService = .shared
     @ObservedObject var ttsManager: SpeechTTSManager = .shared
     @ObservedObject var characterController: VRMCharacterController = .shared
+    @ObservedObject var characterLibrary: VRMCharacterLibrary = .shared
+    @ObservedObject var warmup: ConversationWarmup = .shared
+    let onShowCharacterList: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isInputFocused: Bool
     @State private var showHistoryOverlay: Bool = false
@@ -12,8 +15,9 @@ public struct ChatOverlayView: View {
     @State private var showViewpointSavedToast: Bool = false
     @State private var toastDismissTask: Task<Void, Never>?
     
-    public init(viewModel: ConversationViewModel) {
+    public init(viewModel: ConversationViewModel, onShowCharacterList: @escaping () -> Void) {
         self.viewModel = viewModel
+        self.onShowCharacterList = onShowCharacterList
     }
     
     public var body: some View {
@@ -22,19 +26,37 @@ public struct ChatOverlayView: View {
             VStack(spacing: 0) {
                 // MARK: - トップバー
                 HStack {
-                    HStack(spacing: 6) {
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
-                            .foregroundColor(AppTheme.puppyPink)
-                            .font(.title3)
-                        Text("CharaTalk")
-                            .font(.headline)
-                            .fontWeight(.heavy)
-                            .foregroundColor(AppTheme.textPrimary)
+                    // 表示中のキャラクター（タップでキャラクター一覧へ戻る）
+                    Button(action: onShowCharacterList) {
+                        HStack(spacing: 8) {
+                            if let id = characterLibrary.activeID, let image = characterLibrary.thumbnails[id] {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 28, height: 28)
+                                    .clipShape(Circle())
+                            } else {
+                                Image(systemName: "person.crop.circle.fill")
+                                    .foregroundColor(AppTheme.puppyPink)
+                                    .font(.title3)
+                            }
+                            Text(characterLibrary.activeEntry?.name ?? "CharaTalk")
+                                .font(.headline)
+                                .fontWeight(.heavy)
+                                .foregroundColor(AppTheme.textPrimary)
+                                .lineLimit(1)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2.weight(.bold))
+                                .foregroundColor(AppTheme.textSecondary)
+                        }
+                        .padding(.leading, 8)
+                        .padding(.trailing, 14)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .shadow(color: AppTheme.puppyPink.opacity(0.18), radius: 8, x: 0, y: 3)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .shadow(color: AppTheme.puppyPink.opacity(0.18), radius: 8, x: 0, y: 3)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("キャラクター一覧に戻る")
                     
                     Spacer()
                     
@@ -98,6 +120,9 @@ public struct ChatOverlayView: View {
             }
             .padding(.horizontal)
             .padding(.top, 8)
+            
+            // キャラクター選択直後のLLM・音声合成の事前読み込み
+            warmupBanner
             
             // モデル未ダウンロード時の通知バナー
             if !ttsManager.isModelInstalled {
@@ -582,6 +607,46 @@ public struct ChatOverlayView: View {
         if viewModel.isSpeaking { return "音声再生中" }
         return "音声入力待機中"
     }
+
+    // MARK: - 事前読み込みの状態表示
+private var warmupBanner: some View {
+    Group {
+        switch warmup.phase {
+        case .warming(let text):
+            HStack(spacing: 8) {
+                ProgressView()
+                    .scaleEffect(0.8)
+                Text(text)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(AppTheme.textPrimary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            .padding(.top, 6)
+            .transition(.opacity)
+        case .failed(let message):
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.yellow)
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(AppTheme.textPrimary)
+                    .lineLimit(3)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal)
+            .padding(.top, 6)
+            .transition(.opacity)
+        case .idle, .ready:
+            EmptyView()
+        }
+    }
+    .animation(.easeInOut(duration: 0.25), value: warmup.phase)
+}
 
     // MARK: - 過去の会話オーバーレイビュー
 private var historyOverlay: some View {

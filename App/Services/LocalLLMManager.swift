@@ -196,6 +196,24 @@ public final class LocalLLMManager: ObservableObject {
     }
 
     #if os(iOS) && canImport(LlamaCpp)
+    /// 初回の会話を待たせないよう、モデルをRAMに載せて1トークンだけ生成しておく（Metal の初期化も済ませる）。
+    /// 会話が始まるまでは自動解放しない。
+    public func prewarm(systemPrompt: String) async throws {
+        guard isModelInstalled, !isGenerating else { return }
+        idleUnloadTask?.cancel()
+        let variant = selectedVariant
+        let modelFileURL = modelsDirectory.appendingPathComponent(variant.fileName)
+        try await engine.prepare(modelFile: modelFileURL, variant: variant, contextLength: 4096)
+        _ = try await engine.generate(
+            messages: [
+                ["role": "system", "content": systemPrompt],
+                ["role": "user", "content": "こんにちは"]
+            ],
+            temperature: 0.1,
+            maxTokens: 1
+        )
+    }
+
     public func generate(
         systemPrompt: String,
         messages: [ChatMessage],

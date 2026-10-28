@@ -16,7 +16,6 @@ public final class VRMCharacterController: ObservableObject {
     @Published public private(set) var isLoading: Bool = false
     @Published public private(set) var loadError: String?
     @Published public private(set) var isLoaded: Bool = false
-    @Published public private(set) var hasCustomAvatar: Bool = false
     
     // MARK: - インタラクティブ操作パラメータ (拡大・縮小・回転・位置)
     @Published public var scale: Float = 1.0 {
@@ -60,6 +59,10 @@ public final class VRMCharacterController: ObservableObject {
     private var avatarLoadID: UUID?
     private var blinkTask: Task<Void, Never>?
     private var isBlinking: Bool = false
+    /// 顔写真の撮影中はまばたきを止める
+    private var isBlinkSuspended: Bool = false
+    /// RealityView の準備前に読み込みを頼まれたときの待ち合わせ
+    private var rootWaiters: [CheckedContinuation<Void, Never>] = []
     
     // 待機モーション（Idle Motion）用
     private var idleTime: Double = 0.0
@@ -70,16 +73,8 @@ public final class VRMCharacterController: ObservableObject {
     /// ズーム（スケーリング）の中心アンカーとなる頭部・顔のローカル高さ
     public private(set) var focusHeadY: Float = 1.25
     
-    private var customVRMURL: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("CustomVRM", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("custom_avatar.vrm")
-    }
-    
     public init() {
         loadSavedDefaultTransform()
-        checkCustomAvatarStatus()
     }
     
     private func loadSavedDefaultTransform() {
@@ -147,14 +142,13 @@ public final class VRMCharacterController: ObservableObject {
         resetTransformWithAnimation()
     }
     
-    public func checkCustomAvatarStatus() {
-        self.hasCustomAvatar = FileManager.default.fileExists(atPath: customVRMURL.path)
-    }
-    
     public func setup(root: Entity) {
         self.rootEntity = root
         setupLighting(in: root)
         startBlinkLoop()
+        let waiters = rootWaiters
+        rootWaiters.removeAll()
+        waiters.forEach { $0.resume() }
     }
     
     private func setupLighting(in root: Entity) {
@@ -189,71 +183,11 @@ public final class VRMCharacterController: ObservableObject {
         }
     }
     
-    public func loadInitialAvatar() async {
-        checkCustomAvatarStatus()
-        if hasCustomAvatar {
-            await loadAvatar(from: customVRMURL)
-        } else {
-            await loadDefaultAvatar()
+    /// 解析済みのVRMを表示する。失敗したら前のモデルは外れたままエラーを投げる。
+    public func loadAvatar(_ vrm: VRM) async throws {
+        if rootEntity == nil {
+            await withCheckedContinuation { rootWaiters.append($0) }
         }
-    }
-    
-    public func importCustomAvatar(from sourceURL: URL) async throws {
-        let secured = sourceURL.startAccessingSecurityScopedResource()
-        defer {
-            if secured {
-                sourceURL.stopAccessingSecurityScopedResource()
-            }
-        }
-        
-        isLoading = true
-        loadError = nil
-        
-        let data: Data
-        do {
-            data = try await Self.performFileOperation {
-                try Data(contentsOf: sourceURL)
-            }
-        } catch {
-            isLoading = false
-            loadError = "VRMファイルの読み出しに失敗しました: \(error.localizedDescription)"
-            throw error
-        }
-        
-        guard !data.isEmpty else {
-            isLoading = false
-            let err = NSError(domain: "VRM", code: -1, userInfo: [NSLocalizedDescriptionKey: "VRMファイルが空です。"])
-            loadError = err.localizedDescription
-            throw err
-        }
-        
-        // ローカルに永続化保存
-        do {
-            let destinationURL = customVRMURL
-            try await Self.performFileOperation {
-                // Atomic replacement also keeps the previous model if writing fails.
-                try data.write(to: destinationURL, options: .atomic)
-            }
-            checkCustomAvatarStatus()
-        } catch {
-            isLoading = false
-            loadError = "VRMファイルの保存に失敗しました: \(error.localizedDescription)"
-            throw error
-        }
-        
-        // ローカルURLからロード
-        await loadAvatar(from: customVRMURL)
-    }
-    
-    public func resetToDefaultAvatar() async {
-        if FileManager.default.fileExists(atPath: customVRMURL.path) {
-            try? FileManager.default.removeItem(at: customVRMURL)
-        }
-        checkCustomAvatarStatus()
-        await loadDefaultAvatar()
-    }
-    
-    public func loadAvatar(from url: URL) async {
         guard let root = rootEntity else { return }
         let loadID = UUID()
         avatarLoadID = loadID
@@ -269,17 +203,13 @@ public final class VRMCharacterController: ObservableObject {
         }
         
         do {
-            // File I/O and GLB/JSON parsing must not block gesture handling on MainActor.
-            // VRM is Sendable; RealityKit entity creation stays on MainActor.
-            let vrm = try await Self.performFileOperation {
-                try VRM(withURL: url)
-            }
-            guard avatarLoadID == loadID else { return }
+            // ファイル読み出しと GLB/JSON 解析は呼び出し側が MainActor の外で済ませている。
+            // RealityKit の Entity 生成は MainActor のまま。
             // モバイル画面に最適なテクスチャ上限 (1024px) を指定し、2048x2048 等の巨大テクスチャによる GPU メモリ圧迫を大幅に削減
             let loader = VRMEntityLoader(vrm: vrm, shaders: [], maxTextureDimension: 1024)
             let entity = try await loader.loadEntity()
             try Task.checkCancellation()
-            guard avatarLoadID == loadID else { return }
+            guard avatarLoadID == loadID else { throw CancellationError() }
             
             root.addChild(entity)
             self.vrmEntity = entity
@@ -327,42 +257,33 @@ public final class VRMCharacterController: ObservableObject {
             updateEntityTransform()
             updateIdleMotion(deltaTime: 0)
         } catch {
-            guard avatarLoadID == loadID else { return }
+            guard avatarLoadID == loadID else { throw CancellationError() }
             self.isLoading = false
             if !(error is CancellationError) {
                 self.loadError = "VRMの読み込みに失敗しました: \(error.localizedDescription)"
             }
+            throw error
         }
     }
 
-    /// Explicitly detach blocking work; a Task created on MainActor would still block UI.
-    nonisolated private static func performFileOperation<Result: Sendable>(
-        _ operation: @escaping @Sendable () throws -> Result
-    ) async throws -> Result {
-        try Task.checkCancellation()
-        let task = Task.detached(priority: .userInitiated) {
-            try Task.checkCancellation()
-            let result = try operation()
-            try Task.checkCancellation()
-            return result
-        }
-        return try await withTaskCancellationHandler {
-            let result = try await task.value
-            try Task.checkCancellation()
-            return result
-        } onCancel: {
-            task.cancel()
+    /// 表示中のモデルの顔を画面外で撮影する（キャラクター一覧のサムネイル用）
+    public func captureFaceThumbnail() async -> CGImage? {
+        guard let entity = vrmEntity else { return nil }
+        isBlinkSuspended = true
+        defer { isBlinkSuspended = false }
+        entity.setExpression(value: 0, for: .preset(.blink))
+        // 読み込み直後のTポーズから待機ポーズへ変形し、揺れものが落ち着くまで待つ
+        try? await Task.sleep(nanoseconds: 700_000_000)
+        guard vrmEntity === entity else { return nil }
+        do {
+            // 頭のボーンは首の付け根寄りにあるので、少し上を顔の中心とする
+            return try await VRMThumbnailRenderer.render(entity, faceCenterY: focusHeadY + 0.07)
+        } catch {
+            print("[VRMCharacterController] 顔写真の撮影に失敗しました: \(error.localizedDescription)")
+            return nil
         }
     }
-    
-    public func loadDefaultAvatar() async {
-        if let defaultURL = Bundle.main.url(forResource: "default_avatar", withExtension: "vrm") {
-            await loadAvatar(from: defaultURL)
-        } else {
-            loadError = "デフォルトのVRMモデルが見つかりません。"
-        }
-    }
-    
+
     /// スケール・回転・オフセット・呼吸を反映した現在ワールド位置
     /// 顔（頭部アンカー）を中心に拡大縮小するよう、拡大率に合わせてベース高さを自動補正
     private var calculatedPosition: SIMD3<Float> {
@@ -514,7 +435,7 @@ public final class VRMCharacterController: ObservableObject {
     }
     
     private func performBlinkAnimation() async {
-        guard let entity = vrmEntity, !isBlinking else { return }
+        guard let entity = vrmEntity, !isBlinking, !isBlinkSuspended else { return }
         isBlinking = true
         
         // 閉じる (約60ms)

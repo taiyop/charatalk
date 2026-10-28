@@ -20,9 +20,9 @@ the repository-only documents are not bundled, and the default VRM is unchanged:
 python3 Tests/LicensePackagingTests.py --app-bundle "/path/to/CharaTalk.app"
 ```
 
-Default avatar check: clean install with no custom avatar → `vrm_sample` loads;
-import a custom VRM → it still takes priority; `デフォルトモデルに戻す` →
-`vrm_sample` loads again. Check framing, blink and lip sync on a device.
+Default avatar check: a clean install opens on the character list with
+`vrm_sample`; tapping it loads the model and saves its face photo. Check framing,
+blink and lip sync on a device.
 `App/Resources/default_avatar.vrm` contains the renamed but otherwise unchanged
 vrm_sample model.
 
@@ -64,7 +64,7 @@ the consuming harness uses Swift 6, as the app does.
 
 - Open settings → voice settings repeatedly: the microphone label should render
   with `mic.fill`, without a missing-system-symbol warning (iOS 18 or later).
-- During initial VRM loading, custom VRM import and resetting the default, check
+- While opening a character from the list or adding a VRM, check
   that the loading indicator animates and UI controls remain responsive. File
   reads, VRM parsing and atomic import writes run off MainActor; RealityKit
   entity creation remains on MainActor. Check large files on a real iPhone too.
@@ -768,3 +768,35 @@ Coverage: the LFM2.5 directory and setting are removed while `LocalLLMModels/`
 and `localLLMModelVariant` are kept; an empty install and repeat runs are no-ops;
 added entries are honored; `..`, `.` and empty paths can't delete anything outside
 Application Support or the folder itself.
+
+# VRM character list tests
+
+The app starts on a character list (`App/Views/CharacterSelectionView.swift`).
+VRM files are not copied: `App/Services/VRMCharacterLibrary.swift` keeps a
+bookmark to the picked file and reopens it with one tap; if it can no longer be
+opened, the user picks the file again and the entry keeps its face photo.
+Face photos are rendered off screen from the loaded model
+(`VRMThumbnailRenderer`). After a character opens, `ConversationWarmup` loads the
+local LLM (when selected) and Irodori TTS, including a short trial generation, so
+the first turn does not pay for model loading.
+
+`App/Services/VRMCharacterStore.swift` (list file, ordering, thumbnails) has
+standalone tests in a temporary directory:
+
+```sh
+(
+set -eu
+BIN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/vrm-character-store-tests.XXXXXX")"
+trap 'rm -f "$BIN_DIR/tests"; rmdir "$BIN_DIR"' EXIT
+swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
+  App/Services/VRMCharacterStore.swift Tests/VRMCharacterStoreTests.swift \
+  -o "$BIN_DIR/tests"
+"$BIN_DIR/tests"
+)
+```
+
+Device check: add a VRM from Files (including iCloud Drive) → it opens and gets a
+face photo; relaunch → one tap reopens it; move or delete the file → tapping it
+offers 「ファイルを選び直す」. After opening, the 「…を準備しています…」 banner
+disappears and the first reply starts without model loading. A VRM imported by
+an earlier version (`CustomVRM/custom_avatar.vrm`) appears as 「カスタムVRM」.

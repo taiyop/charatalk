@@ -31,6 +31,11 @@
 		7A7BBC064DBF4508C277C899 /* VoiceReferenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5FE1AEF6A6E2CA861151BD /* VoiceReferenceManager.swift */; };
 		9C554F055255DEF2442F3BF2 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4A213F70EB024B979FD76C /* AppSettings.swift */; };
 		A36E22D7E66592B542170328 /* LocalLLMManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A9CA7DBBDDDE5C1D0577FF0 /* LocalLLMManager.swift */; };
+		C897846F4091F7F319010A30 /* VRMCharacterStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A31 /* VRMCharacterStore.swift */; };
+		C897846F4091F7F319010A32 /* VRMCharacterLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A33 /* VRMCharacterLibrary.swift */; };
+		C897846F4091F7F319010A34 /* VRMThumbnailRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A35 /* VRMThumbnailRenderer.swift */; };
+		C897846F4091F7F319010A36 /* ConversationWarmup.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A37 /* ConversationWarmup.swift */; };
+		C897846F4091F7F319010A38 /* CharacterSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A39 /* CharacterSelectionView.swift */; };
 		C897846F4091F7F319010A27 /* RetiredLocalLLMCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = C897846F4091F7F319010A28 /* RetiredLocalLLMCleanup.swift */; };
 		AD4224FE6BFDD419C5F6EDB4 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29EEBE114D6EDE804D0DFCDE /* AppTheme.swift */; };
 		B05132058DE9B8D168DC6CD6 /* LLMClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76177F9D05D8080A98D0A42B /* LLMClient.swift */; };
@@ -79,6 +84,11 @@
 		4F92564735EDEFDD235F6E3D /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		5198F97666B717642BAC2D3C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		5A9CA7DBBDDDE5C1D0577FF0 /* LocalLLMManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMManager.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A31 /* VRMCharacterStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VRMCharacterStore.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A33 /* VRMCharacterLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VRMCharacterLibrary.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A35 /* VRMThumbnailRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VRMThumbnailRenderer.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A37 /* ConversationWarmup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationWarmup.swift; sourceTree = "<group>"; };
+		C897846F4091F7F319010A39 /* CharacterSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterSelectionView.swift; sourceTree = "<group>"; };
 		C897846F4091F7F319010A28 /* RetiredLocalLLMCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetiredLocalLLMCleanup.swift; sourceTree = "<group>"; };
 		5B4A213F70EB024B979FD76C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		5DAF0A2A16DD96B4867A0045 /* ChatOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlayView.swift; sourceTree = "<group>"; };
@@ -185,6 +195,10 @@
 				C897846F4091F7F319010A20 /* GeminiInference.swift */,
 				76177F9D05D8080A98D0A42B /* LLMClient.swift */,
 				5A9CA7DBBDDDE5C1D0577FF0 /* LocalLLMManager.swift */,
+				C897846F4091F7F319010A31 /* VRMCharacterStore.swift */,
+				C897846F4091F7F319010A33 /* VRMCharacterLibrary.swift */,
+				C897846F4091F7F319010A35 /* VRMThumbnailRenderer.swift */,
+				C897846F4091F7F319010A37 /* ConversationWarmup.swift */,
 				C897846F4091F7F319010A28 /* RetiredLocalLLMCleanup.swift */,
 				0C651DCE8FE171B69A210807 /* SentenceSplitter.swift */,
 				42E6C0963F2E8F58A3BDEA4E /* SileroVADDetector.swift */,
@@ -219,6 +233,7 @@
 			isa = PBXGroup;
 			children = (
 				5DAF0A2A16DD96B4867A0045 /* ChatOverlayView.swift */,
+				C897846F4091F7F319010A39 /* CharacterSelectionView.swift */,
 				5198F97666B717642BAC2D3C /* ContentView.swift */,
 				C897846F4091F7F319010A22 /* GeminiSettingsView.swift */,
 				4BC8424BAD34F87ED16B2DAF /* SettingsView.swift */,
@@ -379,6 +394,11 @@
 				0135107B7F25D500C6903186 /* ConversationViewModel.swift in Sources */,
 				B05132058DE9B8D168DC6CD6 /* LLMClient.swift in Sources */,
 				A36E22D7E66592B542170328 /* LocalLLMManager.swift in Sources */,
+				C897846F4091F7F319010A30 /* VRMCharacterStore.swift in Sources */,
+				C897846F4091F7F319010A32 /* VRMCharacterLibrary.swift in Sources */,
+				C897846F4091F7F319010A34 /* VRMThumbnailRenderer.swift in Sources */,
+				C897846F4091F7F319010A36 /* ConversationWarmup.swift in Sources */,
+				C897846F4091F7F319010A38 /* CharacterSelectionView.swift in Sources */,
 				C897846F4091F7F319010A27 /* RetiredLocalLLMCleanup.swift in Sources */,
 				6BFA661F8CB16D701F5A6E99 /* SentenceSplitter.swift in Sources */,
 				F055698873E8AA3269A78D2C /* SettingsView.swift in Sources */,

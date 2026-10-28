@@ -23,10 +23,8 @@ public struct VRMRealityView: View {
             RealityView { content in
                 let root = Entity()
                 content.add(root)
+                // アバターはキャラクター一覧で選ばれたときに読み込む
                 controller.setup(root: root)
-                
-                // アバターの初期ロード（カスタムVRMがあればそれを、なければデフォルト）
-                await controller.loadInitialAvatar()
             }
             .gesture(
                 // 回転・移動（ドラッグ）と拡大縮小（ピンチ）の同時合成ジェスチャー

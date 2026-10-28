@@ -129,7 +129,7 @@ class LicensePackagingTests(unittest.TestCase):
             self.assertIn(meta["licenseUrl"], text)
 
     def test_runtime_default_points_to_the_new_bundled_model(self):
-        text = (ROOT / "App/Services/VRMCharacterController.swift").read_text(encoding="utf-8")
+        text = (ROOT / "App/Services/VRMCharacterLibrary.swift").read_text(encoding="utf-8")
         self.assertIn('forResource: "default_avatar", withExtension: "vrm"', text)
         self.assertNotIn('forResource: "vrm_sample"', text)
 

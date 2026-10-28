@@ -30,6 +30,7 @@ public struct SettingsView: View {
     @ObservedObject var ttsManager: SpeechTTSManager = .shared
     @ObservedObject var voiceManager: VoiceReferenceManager = .shared
     @ObservedObject var characterController: VRMCharacterController = .shared
+    @ObservedObject var characterLibrary: VRMCharacterLibrary = .shared
     @ObservedObject var localLLM: LocalLLMManager = .shared
     @ObservedObject var chatGPTAuth: ChatGPTAuthManager = .shared
     @Environment(\.dismiss) private var dismiss
@@ -37,7 +38,6 @@ public struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .character
     
     // インポーター開閉状態
-    @State private var showVRMImporter: Bool = false
     @State private var showAudioImporter: Bool = false
     @State private var showAPIKey: Bool = false
     
@@ -45,7 +45,6 @@ public struct SettingsView: View {
     @State private var downloadError: String?
     @State private var localLLMDownloadError: String?
     @State private var referenceError: String?
-    @State private var vrmError: String?
     
     // 段階的開示（Progressive Disclosure）の開閉状態
     @State private var isVoiceReferenceExpanded: Bool = false
@@ -54,15 +53,6 @@ public struct SettingsView: View {
     @State private var isLLMAdvancedExpanded: Bool = false
     @State private var isChatGPTAdvancedExpanded: Bool = false
     @State private var isPromptEditorExpanded: Bool = false
-    
-    // VRM対応UTType定義
-    private static let vrmContentTypes: [UTType] = [
-        UTType("org.vrm-consortium.vrm"),
-        UTType(filenameExtension: "vrm"),
-        UTType(filenameExtension: "glb"),
-        .data,
-        .item
-    ].compactMap { $0 }
     
     // 話し方プリセット
     private let captionPresets: [(label: String, caption: String)] = [
@@ -82,7 +72,12 @@ public struct SettingsView: View {
         ("癒し系", "あなたは優しく包容力のあるキャラクターです。ユーザーを気遣い、温かい言葉遣いで優しくお話ししてください。")
     ]
     
-    public init() {}
+    /// キャラクター一覧へ戻る（設定画面も閉じる）
+    private let onShowCharacterList: () -> Void
+    
+    public init(onShowCharacterList: @escaping () -> Void) {
+        self.onShowCharacterList = onShowCharacterList
+    }
     
     public var body: some View {
         NavigationStack {
@@ -137,98 +132,51 @@ public struct SettingsView: View {
         // --- 3Dアバターモデル ---
         Section {
             HStack(spacing: 14) {
-                Image(systemName: characterController.hasCustomAvatar ? "person.crop.artframe" : "figure.stand")
-                    .font(.title2)
-                    .foregroundColor(AppTheme.puppyPink)
-                    .frame(width: 36, height: 36)
-                    .background(AppTheme.puppyPink.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                Group {
+                    if let id = characterLibrary.activeID, let image = characterLibrary.thumbnails[id] {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: "figure.stand")
+                            .font(.title2)
+                            .foregroundColor(AppTheme.puppyPink)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(AppTheme.puppyPink.opacity(0.12))
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
                 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(characterController.hasCustomAvatar ? "カスタムVRMモデル" : "デフォルトアバター")
+                    Text(characterLibrary.activeEntry?.name ?? "キャラクター未選択")
                         .font(.headline)
-                    Text(characterController.hasCustomAvatar ? "インポートしたモデルを適用中" : "vrm_sample（作者：taiyop）")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if let entry = characterLibrary.activeEntry {
+                        Text(entry.isBuiltIn ? "vrm_sample（作者：taiyop）" : (entry.fileName ?? "VRMファイル"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
-                
-                if characterController.hasCustomAvatar {
-                    Label("適用中", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
             }
             .padding(.vertical, 4)
             
-            // アクションボタン
-            VStack(spacing: 8) {
-                Button {
-                    showVRMImporter = true
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.arrow.down")
-                        Text(characterController.hasCustomAvatar ? "別のVRMファイルに変更" : "カスタムVRMファイルを読み込む")
-                    }
-                    .frame(maxWidth: .infinity)
+            Button {
+                dismiss()
+                onShowCharacterList()
+            } label: {
+                HStack {
+                    Image(systemName: "person.2.crop.square.stack")
+                    Text("キャラクター一覧で選び直す")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.puppyPink)
-                .disabled(characterController.isLoading)
-                // ファイルピッカー（ボタン直下に配置しスコープ競合を防止）
-                .fileImporter(
-                    isPresented: $showVRMImporter,
-                    allowedContentTypes: Self.vrmContentTypes,
-                    allowsMultipleSelection: false
-                ) { result in
-                    switch result {
-                    case .success(let urls):
-                        if let url = urls.first {
-                            vrmError = nil
-                            Task {
-                                do {
-                                    try await characterController.importCustomAvatar(from: url)
-                                    dismiss()
-                                } catch {
-                                    vrmError = error.localizedDescription
-                                }
-                            }
-                        }
-                    case .failure(let error):
-                        vrmError = "ファイル選択エラー: \(error.localizedDescription)"
-                    }
-                }
-                
-                if characterController.hasCustomAvatar {
-                    Button(role: .destructive) {
-                        Task {
-                            await characterController.resetToDefaultAvatar()
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.counterclockwise")
-                            Text("デフォルトモデルに戻す")
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .disabled(characterController.isLoading)
-                }
+                .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(AppTheme.puppyPink)
             .padding(.vertical, 4)
             
-            if characterController.isLoading {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("3Dモデルを読み込んでいます…")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            if let err = vrmError ?? characterController.loadError {
+            if let err = characterController.loadError {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.yellow)
@@ -240,7 +188,7 @@ public struct SettingsView: View {
         } header: {
             Label("3Dアバター", systemImage: "cube.fill")
         } footer: {
-            Text("VRM 0.0 / 1.0 形式の3Dキャラクターモデルファイルを読み込んで利用できます。標準のvrm_sampleは個人の非営利利用のみです。")
+            Text("VRM 0.0 / 1.0 形式のファイルをキャラクター一覧から追加できます。ファイルはコピーせず、選んだ場所から読み込みます。標準のvrm_sampleは個人の非営利利用のみです。")
                 .font(.caption2)
         }
         

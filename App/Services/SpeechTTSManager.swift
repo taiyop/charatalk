@@ -232,6 +232,45 @@ public final class SpeechTTSManager: ObservableObject {
     }
     
     #if os(iOS) && canImport(IrodoriSpeechCpp)
+    /// 初回の発話を待たせないよう、モデルの読み込み・参照音声の登録・短い試し合成（Metal の初期化）を済ませておく。
+    /// 会話が始まるまでは自動解放しない。
+    public func prewarm() async throws {
+        #if !targetEnvironment(simulator)
+        guard isModelInstalled, !isSynthesizing else { return }
+        idleUnloadTask?.cancel()
+        let refURL = AppSettings.shared.referenceAudioURL
+        let caption = AppSettings.shared.ttsCaption
+        let options = AppSettings.shared.currentSynthesisOptions
+        let variant = selectedVariant
+        try await residency.withModel(
+            identifier: "speech.cpp:\(modelsDirectory.path):\(variant.rawValue)",
+            load: { [weak self] in
+                guard let self = self else { return }
+                _ = try await ConversationPerformance.measureAsync("TTS model load") {
+                    try await self.engine.prepare(modelDirectory: self.modelsDirectory, variant: variant)
+                }
+            },
+            release: { [weak self] in
+                await self?.engine.release()
+            },
+            operation: { [weak self] in
+                guard let self = self else { throw TTSError.synthesisFailed("Engine was deallocated") }
+                try await self.engine.registerReference(refURL)
+                _ = try await ConversationPerformance.measureAsync("TTS prewarm synthesis") {
+                    try await self.engine.synthesize(
+                        "はい。",
+                        caption: caption,
+                        seed: 12345,
+                        options: options,
+                        watermark: nil,
+                        trackMemory: false
+                    )
+                }
+            }
+        )
+        #endif
+    }
+
     public func synthesize(
         text: String,
         caption: String,
